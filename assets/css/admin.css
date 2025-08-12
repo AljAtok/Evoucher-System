@@ -1,0 +1,672 @@
+html {
+	scroll-behavior: smooth;
+}
+
+.wrapper {
+	display: flex;
+	width: 100%;
+}
+
+#sidebar {
+	width: 250px;
+	position: fixed;
+	top: 0;
+	left: 0;
+	height: 100vh;
+	z-index: 999;
+	background: #151247;
+	/* background: linear-gradient(
+		180deg,
+		rgb(128, 0, 0) 0%,
+		rgb(50, 0, 0) 50%,
+		rgb(0, 0, 0) 100%
+	); */
+
+	/* box-shadow: 4px 0 10px rgba(128, 0, 0, 0.5); Soft maroon glow */
+
+	color: #fff;
+	transition: all 0.3s;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+#content {
+	width: calc(100% - 250px);
+	/* padding: 0px 20px 20px; */
+	min-height: 100vh;
+	transition: all 0.3s;
+	position: absolute;
+	top: 0;
+	right: 0;
+}
+
+#sidebar.active {
+	margin-left: -250px;
+}
+
+#content.active {
+	width: 100%;
+}
+
+.sidebar-header {
+	margin-top: 25px;
+	/* color: #e3d700; */
+}
+
+#sidebar #main-menu {
+	margin-left: 20px;
+}
+
+#sidebar #main-menu li {
+	padding: 15px 10px;
+}
+#sidebar #main-menu li a {
+	color: #fff;
+	text-decoration: none;
+}
+
+#sidebar #main-menu li a:hover {
+	/*margin-left: 25px;
+    transition:all .5s ease-in-out;*/
+}
+
+#admin-content {
+	margin-top: 10px;
+	padding: 0px 20px 10px;
+}
+
+#approver-content {
+	margin-top: 10px;
+	padding: 0px 20px 10px;
+}
+
+.btn-add {
+	margin: 10px 0px;
+	background-color: #3f51b5;
+	color: #fff;
+	border-radius: 0px;
+	/*box-shadow: 0 3px 6px 0 rgba(237,28,44,0.8);*/
+}
+
+.btn-square {
+	color: #fff;
+	border-radius: 0px;
+}
+
+.table {
+	font-size: 12px;
+}
+
+.table thead {
+	/* background-color: #e3d700; */
+	background: #151247;
+	/* background: linear-gradient(
+		180deg,
+		rgb(0, 0, 139) 0%,
+		rgb(0, 0, 70) 50%,
+		rgb(0, 0, 0) 100%
+	); */
+	color: #fff;
+}
+
+.btn-main {
+	background-color: #ed1c2c;
+	border-color: #ed1c2c;
+	color: #fff;
+}
+
+.btn-yes,
+.btn-no {
+	width: 50px;
+}
+
+.pending-color {
+	background-color: #e8824f;
+	color: #fff;
+}
+
+.acknowledge-color {
+	background-color: #3bb0ba;
+	color: #fff;
+}
+
+.cancel-color {
+	background-color: #d51d48;
+	color: #fff;
+}
+
+.receive-color {
+	background-color: #95ce67;
+	color: #fff;
+}
+
+#order-cards {
+	margin-bottom: 20px;
+}
+
+.card-1 {
+	background-color: #e8824f;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.card-2 {
+	background-color: #3bb0ba;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.card-3 {
+	background-color: #95ce67;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.card-4 {
+	background-color: #d51d48;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.card-5 {
+	background-color: #4a54ce;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.cancel-order,
+.cancel-btn {
+	color: #d51d48;
+}
+
+.badge-pending {
+	background-color: #e8824f;
+	color: #fff;
+}
+
+.customer-details-nav,
+.order-details-nav {
+	background-color: #ed1c2c;
+	color: #fff;
+	margin-bottom: 20px;
+}
+
+#customer-details {
+	margin-bottom: 50px;
+}
+
+#customer-details .form-control {
+	margin-bottom: 10px;
+}
+
+.label-details {
+	margin: 15px 0px;
+}
+
+.cancel-order-details {
+	color: #d51d48;
+}
+
+.strike-text {
+	text-decoration: line-through;
+}
+
+/*Loader CSS*/
+
+#loader-wrapper {
+	background-color: rgba(0, 0, 0, 0.6);
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 1000000;
+}
+#loader {
+	display: block;
+	position: relative;
+	left: 50%;
+	top: 50%;
+	width: 150px;
+	height: 150px;
+	margin: -75px 0 0 -75px;
+	border-radius: 50%;
+	border: 5px solid transparent;
+	border-top-color: #764ba2;
+
+	-webkit-animation: spin 2s linear infinite; /* Chrome, Opera 15+, Safari 5+ */
+	animation: spin 2s linear infinite; /* Chrome, Firefox 16+, IE 10+, Opera */
+}
+
+#loader:before {
+	content: "";
+	position: absolute;
+	top: 5px;
+	left: 5px;
+	right: 5px;
+	bottom: 5px;
+	border-radius: 50%;
+	border: 5px solid transparent;
+	border-top-color: #3cba92;
+
+	-webkit-animation: spin 3s linear infinite; /* Chrome, Opera 15+, Safari 5+ */
+	animation: spin 3s linear infinite; /* Chrome, Firefox 16+, IE 10+, Opera */
+}
+
+#loader:after {
+	content: "";
+	position: absolute;
+	top: 15px;
+	left: 15px;
+	right: 15px;
+	bottom: 15px;
+	border-radius: 50%;
+	border: 5px solid transparent;
+	border-top-color: #b12a5b;
+
+	-webkit-animation: spin 1.5s linear infinite; /* Chrome, Opera 15+, Safari 5+ */
+	animation: spin 1.5s linear infinite; /* Chrome, Firefox 16+, IE 10+, Opera */
+}
+
+@-webkit-keyframes spin {
+	0% {
+		-webkit-transform: rotate(0deg); /* Chrome, Opera 15+, Safari 3.1+ */
+		-ms-transform: rotate(0deg); /* IE 9 */
+		transform: rotate(0deg); /* Firefox 16+, IE 10+, Opera */
+	}
+	100% {
+		-webkit-transform: rotate(360deg); /* Chrome, Opera 15+, Safari 3.1+ */
+		-ms-transform: rotate(360deg); /* IE 9 */
+		transform: rotate(360deg); /* Firefox 16+, IE 10+, Opera */
+	}
+}
+@keyframes spin {
+	0% {
+		-webkit-transform: rotate(0deg); /* Chrome, Opera 15+, Safari 3.1+ */
+		-ms-transform: rotate(0deg); /* IE 9 */
+		transform: rotate(0deg); /* Firefox 16+, IE 10+, Opera */
+	}
+	100% {
+		-webkit-transform: rotate(360deg); /* Chrome, Opera 15+, Safari 3.1+ */
+		-ms-transform: rotate(360deg); /* IE 9 */
+		transform: rotate(360deg); /* Firefox 16+, IE 10+, Opera */
+	}
+}
+
+.loaded #loader-wrapper {
+	visibility: hidden;
+}
+
+.sales-det-qty-input,
+.sales-det-price-input {
+	border: none;
+	border-bottom: 1px solid #37474f;
+	border-radius: 0px;
+	background: transparent;
+	outline: none;
+	box-shadow: none;
+	width: 50%;
+	text-align: right;
+}
+
+.modal {
+	overflow: auto !important;
+}
+
+.discount-code-div {
+	padding-left: 0px;
+}
+
+/*Dashboard CSS*/
+
+.dashboard-row {
+	margin-bottom: 40px;
+}
+
+#dashboard-box {
+}
+
+#today-sales,
+#avg-sales {
+	padding-top: 10px;
+	border: 2px solid #fcc584;
+}
+
+#today-sales-info {
+	margin-top: 50px;
+}
+
+#sales-today-label,
+#sales-tw-label {
+	font-size: 22px;
+	text-align: center;
+	color: #ed1c2c;
+}
+
+.secondary-text {
+	color: #697684;
+	font-size: 12px;
+}
+
+@media (max-width: 768px) {
+	#sidebar {
+		margin-left: -250px;
+	}
+	#sidebar.active {
+		margin-left: 0;
+	}
+
+	#content {
+		width: 100%;
+	}
+
+	#content.active {
+		width: calc(100% - 250px);
+	}
+}
+
+.card-6 {
+	background-color: #6c757d;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.card-7 {
+	background-color: #007bff;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.card-7 {
+	background-color: #feceab;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.card-8 {
+	background-color: #ff847c;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.card-9 {
+	background-color: #e84a5f;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.card-10 {
+	background-color: #007bff;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.card-forwarded {
+	background-color: #fdd835;
+	color: #fff;
+	border-radius: 0px;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.25);
+}
+
+.select2-container.select2-container--default.select2-container--open {
+	z-index: 5000;
+}
+
+.reseller-info-form input {
+	border-radius: 0px;
+}
+.custom-select-md {
+	height: 47px !important;
+	line-height: 1.9 !important;
+	font-size: 1.1rem !important;
+}
+
+.profile-info {
+	font-size: 12px;
+	margin-top: 12px;
+}
+
+.btn-small {
+	margin-top: 12px;
+	margin-bottom: 20px;
+	width: 90px;
+	font-size: 13px;
+	padding: 2px 0px;
+}
+
+.btn-so {
+	color: #4caf50;
+}
+
+.login-wallpaper {
+	background-image: url("../img/login-image.jpg");
+	background-position: center;
+	background-size: cover;
+	background-repeat: no-repeat;
+	height: 100%;
+	min-height: 100%;
+	position: relative;
+}
+
+.login-card {
+	width: 400px;
+	padding: 60px 30px 20px 30px;
+	border-radius: 15px;
+}
+
+.fixed-header th {
+	/* background: #e3d700; */
+	background: #e43131;
+}
+
+.input-container {
+	position: relative; /* Needed for absolute positioning of the border */
+	display: inline-block; /* Or block, depending on your layout */
+	width: 100%; /* Or a specific width */
+}
+
+.input-container input {
+	border: none; /* Remove default border */
+	border-bottom: 2px solid #ccc; /* Bottom border */
+	padding: 8px; /* Add some padding */
+	outline: none; /* Remove outline on focus */
+	box-sizing: border-box; /* Include padding in width calculation */
+	width: 100%; /* Make input fill container width */
+	background-color: transparent; /* or your preferred background */
+}
+
+.input-container input:focus {
+	border-bottom-color: rgb(255, 8, 0); /* Highlight border on focus */
+}
+
+/* Elevation (Shadow) */
+.input-container {
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Adjust values as needed */
+	transition: box-shadow 0.3s ease; /* Add transition for smoother effect */
+}
+
+.input-container:hover {
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Adjust values as needed */
+}
+
+/* Optional: Label styling */
+.input-container label {
+	position: absolute;
+	top: 50%;
+	left: 8px; /* Adjust as needed */
+	transform: translateY(-50%);
+	pointer-events: none; /* Allow clicks to pass through to input */
+	color: #999; /* Adjust color */
+	transition: all 0.2s ease;
+}
+
+.input-container input:focus + label,
+.input-container input:not(:placeholder-shown) + label {
+	top: 0;
+	font-size: 0.8rem;
+	color: rgb(255, 8, 0);
+}
+
+.input-container input:focus {
+	padding-top: 12px; /* Adjust padding to make space for the label */
+}
+
+.input-container input:not(:placeholder-shown) {
+	padding-top: 12px; /* Adjust padding to make space for the label */
+}
+
+.emboss {
+	box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3),
+		/* Outer shadow for the raised effect */ inset -1px -1px 3px
+			rgba(0, 0, 0, 0.2); /* Inner shadow for the "pressed" look */
+	text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5); /* Text shadow for depth */
+	border: none; /* Optional: remove the default border */
+}
+
+.emboss:active {
+	/* Make it look pressed when clicked */
+	box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.2);
+	text-shadow: 0.5px 0.5px 1px rgba(255, 255, 255, 0.5);
+}
+
+/* .nav-tabs .nav-link.active {
+	background-color: #e43131; 
+	color: white; 
+	border-color: #e43131 #dee2e6 #fff;
+}
+
+.nav-tabs .nav-link {
+	color: #333;
+} */
+
+.nav-tabs .nav-link:hover {
+	background-color: #e9ecef; /* hover background color */
+	color: #333; /* Inactive tab text color */
+}
+
+.nav-tabs .nav-link {
+	border: none; /* Remove default Bootstrap border */
+	border-bottom: 2px solid transparent; /* Invisible border */
+	color: #555; /* Default color */
+}
+
+.nav-tabs .nav-link.active {
+	border-bottom: 2px solid #241b60; /* Highlight color */
+	font-weight: bold; /* Optional: Make the text bold */
+	/*color: #e43131;  Change text color to match */
+	color: linear-gradient(
+		180deg,
+		rgb(0, 0, 139) 0%,
+		rgb(0, 0, 70) 50%,
+		rgb(0, 0, 0) 100%
+	);
+}
+
+.button-wrapper {
+	position: relative; /* Establish positioning context */
+	display: inline-block; /* Prevent span from taking full width */
+}
+
+.hover-label {
+	position: absolute;
+	top: 46%;
+	left: 110%; /* Place it to the right of the button */
+	transform: translateY(-50%); /* Vertically center */
+	background-color: #e43131; /* */
+
+	color: white;
+	padding: 5px 10px;
+	border-radius: 10px;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 0.3s ease, visibility 0.3s ease; /* Smooth transition */
+	white-space: nowrap; /* Prevent wrapping */
+}
+
+.button-wrapper:hover .hover-label {
+	opacity: 1;
+	visibility: visible;
+}
+
+.modal-header {
+	/* background-color: #e43131; */
+	background: linear-gradient(
+		180deg,
+		rgb(0, 0, 139) 0%,
+		rgb(0, 0, 70) 50%,
+		rgb(0, 0, 0) 100%
+	);
+	color: white; /* White text for contrast */
+}
+
+.modal-header .close {
+	color: white; /* make the close button white */
+}
+
+.modal-header .close:hover {
+	color: #ccc; /* light gray on hover */
+}
+
+.card .card-title {
+	font-size: 20px;
+}
+
+.sparkline-container {
+	display: inline-block; /* Allows them to sit next to each other */
+	margin: 10px;
+}
+
+.chart-container {
+	width: 100%;
+	height: 100%;
+}
+
+@media (max-width: 991px) {
+	.dropdown-menu {
+		position: absolute !important;
+		right: 0;
+		left: auto;
+		top: 100%;
+		z-index: 1050;
+	}
+}
+
+.compact-list .list-group-item {
+	padding: 0.25rem 0.5rem; /* Adjust as needed */
+}
+
+.acc-card {
+	border: none;
+	margin-bottom: 10px;
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.acc-card-hdr {
+	background-color: #151247; /* Blue Header */
+	color: white;
+	font-weight: bold;
+	padding: 12px 15px;
+	border-radius: 8px 8px 0 0;
+	cursor: pointer;
+}
+
+.acc-card-hdr:hover {
+	background-color: #0056b3; /* Darker Blue on Hover */
+}
+
+.acc-card-body {
+	background-color: #e8e9eb; /* Light Gray Background */
+	padding: 15px;
+	border-radius: 0 0 8px 8px;
+}

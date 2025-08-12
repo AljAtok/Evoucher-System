@@ -1,0 +1,328 @@
+
+body{
+    font-family: 'Helvetica', 'Source Sans Pro', sans-serif;
+}
+
+#loader-wrapper {
+    background-color: rgba(0,0,0,0.6);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000000;
+}
+#loader {
+    display: block;
+    position: relative;
+    left: 50%;
+    top: 50%;
+    width: 150px;
+    height: 150px;
+    margin: -75px 0 0 -75px;
+    border-radius: 50%;
+    border: 5px solid transparent;
+    border-top-color: #764ba2;
+
+    -webkit-animation: spin 2s linear infinite; /* Chrome, Opera 15+, Safari 5+ */
+    animation: spin 2s linear infinite; /* Chrome, Firefox 16+, IE 10+, Opera */
+}
+
+    #loader:before {
+        content: "";
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        right: 5px;
+        bottom: 5px;
+        border-radius: 50%;
+        border: 5px solid transparent;
+        border-top-color: #3cba92;
+
+        -webkit-animation: spin 3s linear infinite; /* Chrome, Opera 15+, Safari 5+ */
+        animation: spin 3s linear infinite; /* Chrome, Firefox 16+, IE 10+, Opera */
+    }
+
+    #loader:after {
+        content: "";
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        right: 15px;
+        bottom: 15px;
+        border-radius: 50%;
+        border: 5px solid transparent;
+        border-top-color: #b12a5b;
+
+        -webkit-animation: spin 1.5s linear infinite; /* Chrome, Opera 15+, Safari 5+ */
+          animation: spin 1.5s linear infinite; /* Chrome, Firefox 16+, IE 10+, Opera */
+    }
+
+    @-webkit-keyframes spin {
+        0%   { 
+            -webkit-transform: rotate(0deg);  /* Chrome, Opera 15+, Safari 3.1+ */
+            -ms-transform: rotate(0deg);  /* IE 9 */
+            transform: rotate(0deg);  /* Firefox 16+, IE 10+, Opera */
+        }
+        100% {
+            -webkit-transform: rotate(360deg);  /* Chrome, Opera 15+, Safari 3.1+ */
+            -ms-transform: rotate(360deg);  /* IE 9 */
+            transform: rotate(360deg);  /* Firefox 16+, IE 10+, Opera */
+        }
+    }
+    @keyframes spin {
+        0%   { 
+            -webkit-transform: rotate(0deg);  /* Chrome, Opera 15+, Safari 3.1+ */
+            -ms-transform: rotate(0deg);  /* IE 9 */
+            transform: rotate(0deg);  /* Firefox 16+, IE 10+, Opera */
+        }
+        100% {
+            -webkit-transform: rotate(360deg);  /* Chrome, Opera 15+, Safari 3.1+ */
+            -ms-transform: rotate(360deg);  /* IE 9 */
+            transform: rotate(360deg);  /* Firefox 16+, IE 10+, Opera */
+        }
+    }
+
+.loaded #loader-wrapper {
+    visibility: hidden;
+}
+
+.nav-pills .nav-link.active, .nav-pills .show>.nav-link {
+    color: #fff!important;
+    background-color: #dc3545!important;
+}
+
+.cat-nav {
+    color: #dc3545!important;
+    text-decoration: none;
+    background-color: transparent;
+    padding: 10px;
+    margin-top: 20px;
+}
+
+.btn-radius {
+    border-radius: 40px;
+    background-color: #ED1C2C;
+    color: #fff;
+    border-radius: 15px;
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.3), 0 4px 8px 0 rgba(0, 0, 0, 0.25);
+}
+
+.form-control:focus, .custom-select:focus  {
+    border-color: #dc3545;
+    box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.075) inset, 0px 0px 8px rgba(233, 144, 144, 0.5);
+}
+
+select.decorated option:hover {
+    box-shadow: 0 0 10px 100px #dc3545 inset;
+}
+
+.custom-control-input:checked~.custom-control-label::before {
+    color: #fff;
+    border-color: #dc3545;
+    background-color: #dc3545;
+}
+
+#header-photo{
+    margin: 0;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+  scroll-behavior: smooth;
+}
+body {
+  /* Margin bottom by footer height */
+  /*margin-bottom: 60px;*/
+}
+
+.main-wrapper{
+    height: auto;
+    min-height: 70vh;
+}
+
+.footer {
+    background-color: #ED1C2C;
+    border-top: 7px solid #fceb16;
+}
+
+.active .bs-stepper-circle {
+    background-color: #dc3545;
+}
+
+.bs-stepper .step-trigger:focus {
+    color: #dc3545;
+    outline: 0;
+}
+
+.bootstrap-datetimepicker-widget table td.active, .bootstrap-datetimepicker-widget table td.active:hover {
+    background-color: #dc3545; 
+}
+
+.bootstrap-datetimepicker-widget table td.today:before {
+    border-bottom-color: #dc3545;
+}
+
+.bootstrap-datetimepicker-widget button[data-action] {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+select:active, select:hover {
+  outline-color: #dc3545;
+}
+
+.dropdown-toggle:after {
+    will-change: transform;
+    transition: transform .15s linear;
+}
+
+.show>.dropdown-toggle:not(.dropdown-item):after {
+    transform: rotate(180deg);
+}
+
+.select2-container--bootstrap4.select2-container--focus .select2-selection {
+    border-color: #dc3545;
+    box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.075) inset, 0px 0px 8px rgba(233, 144, 144, 0.5);
+}
+
+.select2 {
+    width: 100% !important;
+}
+
+.dropdown-item.active, .dropdown-item:active {
+    background-color: #ED1C2C;
+}
+
+.btn-primary:not(:disabled):not(.disabled).active, .btn-primary:not(:disabled):not(.disabled):active, .show>.btn-primary.dropdown-toggle {
+    color: #fff;
+    background-color: #a1222e;
+    border-color: #dc3545;
+}
+
+/* New Style */
+.select2-container--bootstrap4 .select2-results__option--highlighted, .select2-container--bootstrap4 .select2-results__option--highlighted.select2-results__option[aria-selected=true] {
+    background-color: #dc3545;
+    color: #f8f9fa;
+}
+
+.dropdown-item a:hover {
+    color: #ED1C2C;
+    background-color: #fff;
+}
+
+.province-dropdown, .town-group-dropdown {
+    max-height: 200px;
+    overflow  : auto;
+}
+
+.main-bg-color:hover, .btn-checkout:hover {
+    background-color: #a61722!important;
+    color: #fff;
+}
+
+.card-text{
+    font-size: 14px;
+}
+
+.navbar-menu{
+    background-color: #ED1C2C;
+    border-bottom: 7px solid #fceb16;
+}
+
+.nav-border{
+  color: #fff;
+}
+
+.main-color{
+    color: #ED1C2C !important;
+}
+
+.secondary-color{
+    color: #fceb16 !important;
+}
+
+.main-bg-color{
+    background-color: #ED1C2C !important;
+    color: #fff;
+}
+
+.secondary-bg-color{
+    background-color: #fceb16 !important;   
+}
+
+.btn-main{
+    border-radius: 0px;
+}
+
+.card{
+    border: 0px;
+}
+
+a {
+    color: #dc3545;
+}
+
+a:hover {
+    /*color: #dc3545;*/
+}
+
+.table-preorder thead{
+    background-color: #fceb16;
+}
+
+.alert-main{
+    background-color: #ED1C2C;
+    color:#fff;
+    text-align: center;
+    transition:all .5s ease-in-out;
+}
+
+.btn-yes{
+    border-radius: 0px;
+    width: 50px;
+}
+
+.btn-no{
+    border-radius: 0px;
+    width: 50px;
+}
+
+.login-bg{
+    background-image: url('../../assets/img/login-bg.jpg');
+    background-size: cover;
+    height: 90vh;
+}
+
+.form-control{
+    border-radius: 0px;
+}
+
+.select2-container .select2-selection--single {
+    height: 32px !important;
+    border-radius: 0px;
+}
+
+.nav-item > .dropdown-menu, #user-menu > .dropdown-menu{
+    background-color: #ED1C2C;
+    color: #fff;
+    border-radius: 0px;
+    border: 0px;
+}
+
+.dropdown-menu{
+    margin-top: 0px;
+    padding-top: 0px;
+    margin-bottom: 0px;
+    padding-bottom: 0px;
+}
+
+.nav-item .dropdown-menu a, #user-menu > .dropdown-menu a{
+    color: #fff;
+}
+
+.nav-item .dropdown-menu a:hover, #user-menu > .dropdown-menu a:hover{
+    color: #ED1C2C;
+    background-color: #fff;
+}

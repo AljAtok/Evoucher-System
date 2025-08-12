@@ -1,0 +1,49 @@
+
+user_access_tbl
+coupon_holder_type_tbl
+
+ALTER TABLE `coupon_tbl` ADD `coupon_holder_address` VARCHAR(1000) NOT NULL  AFTER `coupon_holder_contact`;
+ALTER TABLE `coupon_tbl` ADD `coupon_holder_tin` VARCHAR(100) NOT NULL  AFTER `coupon_holder_address`;
+ALTER TABLE `coupon_tbl` ADD `coupon_attachment` VARCHAR(1000) NOT NULL  AFTER `coupon_holder_tin`;
+ALTER TABLE `coupon_tbl` ADD `invoice_number` VARCHAR(20) NOT NULL AFTER `user_id`;
+ALTER TABLE `coupon_tbl` ADD `coupon_holder_type_id` INT NOT NULL AFTER `coupon_pdf_path`;
+
+redeem_coupon_tbl alter redeem_outgoing_id set as nullable
+
+e-voucher
+-> $GLOBALS['secondary_db'] = 'chooks_delivery_db'; (DONE)
+-> seperation to different project folder & DB 
+	-> Employee File Maintenance (DONE)
+	-> Voucher File Maintenance (For Testing)
+-> seperate pending and approved (DONE)
+-> additional field for (Employee, Non Employee AND Bavi employee, Crew) [Holder Type] (DONE)
+-> e voucher creator & approver (PARTIAL DONE)
+-> address, tin number for paid voucher
+-> attachment paid voucher, gift voucher
+-> Display amount on paid voucher
+-> Invoice Number in approval paid approval
+
+
+-> evoucher allowed vouchers to create
+-> Restriction on accessing files
+
+
+
+
+-> Email Notification for finance (Approver) on creation of pending And Email notification for Creator on approval
+-> Multiple attachment
+-> Holder Contact Validation
+-> average price report email notification (Price Monitoring)
+
+
+price monitoring
+-> employee access header cleaning
+
+TODO DEADLINE aug 20, 2021
+- Static unused fields in update voucher in approved trans/voucher (attachment and start & end) 
+- handle update functions
+- remove unnecessary columns in every user types
+- create used and unused vocucher list
+- Testing
+
+redeem_coupon_tbl alter redeem_outgoing_id set as nullable
