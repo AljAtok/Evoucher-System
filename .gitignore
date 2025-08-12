@@ -20,3 +20,4 @@ application/config/config.php
 application/config/autoload.php
 application/ci_sessions/*
 system/*
+DB/*
