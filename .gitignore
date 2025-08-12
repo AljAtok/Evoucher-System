@@ -7,6 +7,7 @@ assets/coupons/*
 assets/employee-list/*
 assets/img/*
 assets/zip-coupons-img/*
+assets/sample folder/*
 
 
 application/cache/*
@@ -21,4 +22,3 @@ application/config/autoload.php
 application/ci_sessions/*
 system/*
 DB/*
-sample folder/*
