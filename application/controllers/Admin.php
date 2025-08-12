@@ -10463,12 +10463,15 @@ class Admin extends CI_Controller {
 		exit;
 	}
 
-	private function _get_participants($form_id, $order_by = FALSE, $select = FALSE){
+	private function _get_participants($form_id, $order_by = FALSE, $select = FALSE, $limit_to_yesterday = TRUE){
 		$sibling_db 							= sibling_one_db();
 		$parent_db 								= parent_db();
 		$check_form 							= $this->main->check_data("{$sibling_db}.form_tbl", ['form_id' => $form_id], TRUE);
-		$start_date								= $check_form['result'] ? $check_form['info']->start_date : date("Y-m-d");
-		$end_date								= $check_form['result'] ? $check_form['info']->end_date : date("Y-m-d");
+		$start_date								= $check_form['result'] ? $check_form['info']->start_date : date("Y-m-d H:i:s");
+		$end_date								= $check_form['result'] ? $check_form['info']->end_date : date("Y-m-d H:i:s");
+		if($limit_to_yesterday){
+			$end_date = date('Y-m-d 23:59:59', strtotime('-1 day'));
+		}
 
 		$get_participating_bcs 					= $this->main->get_data('survey_participating_bcs_tbl', ['form_id' => $form_id, 'survey_participating_bc_status' => 1]);
 		$join 									= [
