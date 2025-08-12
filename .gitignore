@@ -21,3 +21,4 @@ application/config/autoload.php
 application/ci_sessions/*
 system/*
 DB/*
+sample-folder/*
