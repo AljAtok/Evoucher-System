@@ -163,7 +163,65 @@ class Raffle extends CI_Controller {
         $this->load->view('raffle/templates', $data);
     }
 
-	private function _get_participants($form_id, $order_by = FALSE, $select = FALSE, $limit_to_yesterday = TRUE){
+	public function all_entries()
+	{
+		$info      = $this->_require_login();
+
+		if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+
+			$form_id = 5;
+			$select = "a.survey_ref_id,
+			a.name,
+			a.email,
+			a.contact_number,
+			a.age,
+			a.address,
+			a.or_number,
+			a.or_photo,
+			RIGHT(a.ref_no, 9) AS ref_no,
+			a.created_at AS entry_created_at,
+			b.province_name,
+			c.town_group_name,
+			d.barangay_name,
+			e.survey_winner_id,
+			e.created_at AS winner_created_at
+			";
+			$order_by = 'survey_ref_id DESC';
+			
+			$participants_det = $this->_get_participants($form_id, FALSE, FALSE, FALSE);
+			$start_date = $participants_det['start_date'];
+			$end_date = $participants_det['end_date'];
+			$filter	= 'status = 1 and a.form_id = '.$form_id.' and a.created_at >= "'.$start_date.'" AND a.created_at <= "'.$end_date.'"';
+			
+			$participants = $this->_get_participants($form_id, $order_by, $select, FALSE, $filter, $with_winner=TRUE)['participants'];
+
+
+			$survey_photo_url = SURVEY_PHOTO_URL;
+			$data = [];
+			foreach ($participants as $row) {
+				$data[] = [
+					'id' => $row->survey_ref_id,
+					'name' => $row->name,
+					'ref_no' => $row->ref_no,
+					'email' => $row->email,
+					'contact_number' => $row->contact_number,
+					'address' => $row->address,
+					'province' => $row->barangay_name. ' ' . $row->town_group_name . ', ' . $row->province_name,
+					'or_number' => $row->or_number,
+					'or_photo' => $row->or_photo ? $survey_photo_url . $row->or_photo : '',
+					'entry_created_at' => date('M d, Y h:i A', strtotime($row->entry_created_at)),
+					'is_winner' => $row->survey_winner_id ? "YES" : "NO",
+					'winner_created_at' => $row->winner_created_at ? date('M d, Y h:i A', strtotime($row->winner_created_at)) : '',
+					'winning_date' => $row->winner_created_at ? date('M d, Y', strtotime($row->winner_created_at)) : '',
+				];
+			}
+
+			echo json_encode($data);
+			exit;
+		}
+	}
+
+	private function _get_participants($form_id, $order_by = FALSE, $select = FALSE, $limit_to_yesterday = TRUE, $filter = FALSE, $with_winner = FALSE){
 		$sibling_db 							= sibling_one_db();
 		$parent_db 								= parent_db();
 		$check_form 							= $this->main->check_data("{$sibling_db}.form_tbl", ['form_id' => $form_id], TRUE);
@@ -178,26 +236,37 @@ class Raffle extends CI_Controller {
 			"{$parent_db}.bc_tbl b" 			=> 'a.bc_id = b.bc_id'
 		];
 		$get_participating_bcs 					= $this->main->get_join('survey_participating_bcs_tbl a', $join, FALSE, FALSE, FALSE, 'a.*, b.bc_name', ['a.form_id' => $form_id, 'a.survey_participating_bc_status' => 1]);
+
+		$participants = [];
+		$bcs = [];
 		
 		if(!empty($get_participating_bcs)){
 			$bcs = array_column($get_participating_bcs, 'bc_id');
 			$bcs = implode(',', $bcs);
 
-			$filter									= 'status = 1 and form_id = '.$form_id.' and survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status = 1 and form_id= '.$form_id.') and created_at >= "'.$start_date.'" AND created_at <= "'.$end_date.'"';
-			$join 									= [
-				"{$parent_db}.provinces_tbl b" 		=> 'a.province_id = b.province_id and b.bc_id IN ('.$bcs.')',
-				"{$parent_db}.town_groups_tbl c" 	=> 'a.town_group_id = c.town_group_id',
-				"{$parent_db}.barangay_tbl d" 		=> 'a.barangay_id = d.barangay_id',
-			];
-			$participants         					= $this->main->get_join('survey_reference_tbl a', $join, FALSE, $order_by, FALSE, $select, $filter);
+			if(!$filter){
+				$filter									= 'status = 1 and form_id = '.$form_id.' and survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status = 1 and form_id= '.$form_id.') and created_at >= "'.$start_date.'" AND created_at <= "'.$end_date.'"';
+			}
+			if($select){
+				$join 									= [
+					"{$parent_db}.provinces_tbl b" 		=> 'a.province_id = b.province_id and b.bc_id IN ('.$bcs.')',
+					"{$parent_db}.town_groups_tbl c" 	=> 'a.town_group_id = c.town_group_id',
+					"{$parent_db}.barangay_tbl d" 		=> 'a.barangay_id = d.barangay_id',
+				];
+
+				if($with_winner){
+					$join['survey_winners_tbl e, LEFT'] = 'a.survey_ref_id = e.survey_ref_id AND e.survey_winner_status = 1 AND e.form_id = '.$form_id.' AND e.survey_winner_validated = 1';
+				}
+				$participants         					= $this->main->get_join('survey_reference_tbl a', $join, FALSE, $order_by, FALSE, $select, $filter);
+			}
 			
-		} else {
-			$participants = [];
-			$bcs = [];
 		}
+
 		$result = [
 			'bcs' => $bcs,
 			'participants' => $participants,
+			'start_date' => $start_date,
+			'end_date' => $end_date
 		];
 		return $result;
 	}

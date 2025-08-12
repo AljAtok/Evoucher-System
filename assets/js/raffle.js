@@ -622,6 +622,25 @@ async function renderTabs() {
 			)})'>View</button>`,
 		"Search participants..."
 	);
+
+	// All entries
+	const allEntries = await fetchAllEntries();
+	renderTable(
+		tabContentAllEntries,
+		allEntries,
+		[
+			{ label: "Ref. No.", key: "ref_no" },
+			{ label: "Name", key: "name" },
+			{ label: "Entry At", key: "entry_created_at" },
+			{ label: "Is Winner", key: "is_winner" },
+			{ label: "Winning Date", key: "winning_date" },
+		],
+		(row) =>
+			`<button class='btn btn-primary btn-xs' onclick='showParticipantInfo(${JSON.stringify(
+				row
+			)})'>View</button>`,
+		"Search participants..."
+	);
 }
 
 // --- Modal Action Handlers ---
@@ -733,6 +752,7 @@ const tabNotValidated = document.getElementById("tabNotValidated");
 const tabValidated = document.getElementById("tabValidated");
 const tabRejected = document.getElementById("tabRejected");
 const tabParticipants = document.getElementById("tabParticipants");
+const tabAllEntries = document.getElementById("tabAllEntries");
 
 const tabContentNotValidated = document.getElementById(
 	"tabContentNotValidated"
@@ -742,20 +762,24 @@ const tabContentRejected = document.getElementById("tabContentRejected");
 const tabContentParticipants = document.getElementById(
 	"tabContentParticipants"
 );
+const tabContentAllEntries = document.getElementById("tabContentAllEntries");
 
 function showTab(tab) {
 	tabContentNotValidated.classList.add("hidden");
 	tabContentValidated.classList.add("hidden");
 	tabContentRejected.classList.add("hidden");
 	tabContentParticipants.classList.add("hidden");
+	tabContentAllEntries.classList.add("hidden");
 	tabNotValidated.classList.remove("border-indigo-500", "text-indigo-700");
 	tabValidated.classList.remove("border-indigo-500", "text-indigo-700");
 	tabRejected.classList.remove("border-indigo-500", "text-indigo-700");
 	tabParticipants.classList.remove("border-indigo-500", "text-indigo-700");
+	tabAllEntries.classList.remove("border-indigo-500", "text-indigo-700");
 	tabNotValidated.classList.add("border-transparent", "text-gray-600");
 	tabValidated.classList.add("border-transparent", "text-gray-600");
 	tabRejected.classList.add("border-transparent", "text-gray-600");
 	tabParticipants.classList.add("border-transparent", "text-gray-600");
+	tabAllEntries.classList.add("border-transparent", "text-gray-600");
 	if (tab === "notvalidated") {
 		tabContentNotValidated.classList.remove("hidden");
 		tabNotValidated.classList.remove("border-transparent", "text-gray-600");
@@ -772,17 +796,28 @@ function showTab(tab) {
 		tabContentRejected.classList.remove("hidden");
 		tabRejected.classList.remove("border-transparent", "text-gray-600");
 		tabRejected.classList.add("border-indigo-500", "text-indigo-700");
+	} else if (tab === "allentries") {
+		tabContentAllEntries.classList.remove("hidden");
+		tabAllEntries.classList.remove("border-transparent", "text-gray-600");
+		tabAllEntries.classList.add("border-indigo-500", "text-indigo-700");
 	} else {
 		tabContentParticipants.classList.remove("hidden");
 		tabParticipants.classList.remove("border-transparent", "text-gray-600");
 		tabParticipants.classList.add("border-indigo-500", "text-indigo-700");
 	}
 }
-if (tabNotValidated && tabValidated && tabParticipants && tabRejected) {
+if (
+	tabNotValidated &&
+	tabValidated &&
+	tabParticipants &&
+	tabRejected &&
+	tabAllEntries
+) {
 	tabNotValidated.addEventListener("click", () => showTab("notvalidated"));
 	tabValidated.addEventListener("click", () => showTab("validated"));
 	tabRejected.addEventListener("click", () => showTab("rejected"));
 	tabParticipants.addEventListener("click", () => showTab("participants"));
+	tabAllEntries.addEventListener("click", () => showTab("allentries"));
 }
 
 // --- Fetch Functions for Winners ---
@@ -796,6 +831,10 @@ async function fetchValidatedWinners() {
 }
 async function fetchRejectedWinners() {
 	const res = await fetch(`${API_BASE_URL}/rejected-winners`);
+	return res.ok ? res.json() : [];
+}
+async function fetchAllEntries() {
+	const res = await fetch(`${API_BASE_URL}/all-entries`);
 	return res.ok ? res.json() : [];
 }
 

@@ -9,7 +9,7 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             padding: 30px;
             width: 100%;
-            max-width: 900px;
+            max-width: 950px;
             display: flex;
             flex-direction: column;
             gap: 20px;
@@ -303,11 +303,13 @@
 					<button id="tabValidated" class="tab-btn px-4 py-2 font-semibold border-b-2 border-transparent text-gray-600">Validated Winners</button>
 					<button id="tabRejected" class="tab-btn px-4 py-2 font-semibold border-b-2 border-transparent text-gray-600">Rejected Winners</button>
 					<button id="tabParticipants" class="tab-btn px-4 py-2 font-semibold border-b-2 border-transparent text-gray-600">Participants</button>
+					<button id="tabAllEntries" class="tab-btn px-4 py-2 font-semibold border-b-2 border-transparent text-gray-600">All Entries</button>
 				</div>
 				<div id="tabContentNotValidated" class="tab-content"></div>
 				<div id="tabContentValidated" class="tab-content hidden"></div>
 				<div id="tabContentRejected" class="tab-content hidden"></div>
 				<div id="tabContentParticipants" class="tab-content hidden"></div>
+				<div id="tabContentAllEntries" class="tab-content hidden"></div>
 			</div>
 
 			<!-- <h2 class="section-title text-xl">Current Participants</h2>
