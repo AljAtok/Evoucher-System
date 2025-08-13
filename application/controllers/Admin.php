@@ -10081,7 +10081,7 @@ class Admin extends CI_Controller {
 			$survey_photo_url = SURVEY_PHOTO_URL;
 			$data = [];
 			foreach ($participants as $row) {
-				$data[] = [
+				$data[] = $row->survey_winner_id ? [
 					'id' => $row->survey_ref_id,
 					'name' => $row->name,
 					'ref_no' => $row->ref_no,
@@ -10095,6 +10095,18 @@ class Admin extends CI_Controller {
 					'is_winner' => $row->survey_winner_id ? "YES" : "NO",
 					'winner_created_at' => $row->winner_created_at ? date('M d, Y h:i A', strtotime($row->winner_created_at)) : '',
 					'winning_date' => $row->winner_created_at ? date('M d, Y', strtotime($row->winner_created_at)) : '',
+				] : [
+					'id' => $row->survey_ref_id,
+					'name' => $row->name,
+					'ref_no' => $row->ref_no,
+					'email' => $row->email,
+					'contact_number' => $row->contact_number,
+					'address' => $row->address,
+					'province' => $row->barangay_name. ' ' . $row->town_group_name . ', ' . $row->province_name,
+					'or_number' => $row->or_number,
+					'or_photo' => $row->or_photo ? $survey_photo_url . $row->or_photo : '',
+					'entry_created_at' => date('M d, Y h:i A', strtotime($row->entry_created_at)),
+					'is_winner' => $row->survey_winner_id ? "YES" : "NO",
 				];
 			}
 
