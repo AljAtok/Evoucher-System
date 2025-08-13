@@ -605,7 +605,7 @@ async function renderTabs() {
 			`<button class='btn btn-primary btn-xs' onclick='showParticipantInfo(${JSON.stringify(
 				row
 			)})'>View</button>`,
-		"Search validated winners..."
+		"Search rejected winners..."
 	);
 	// Participants
 	renderTable(
@@ -639,7 +639,7 @@ async function renderTabs() {
 			`<button class='btn btn-primary btn-xs' onclick='showParticipantInfo(${JSON.stringify(
 				row
 			)})'>View</button>`,
-		"Search participants..."
+		"Search entries..."
 	);
 }
 
