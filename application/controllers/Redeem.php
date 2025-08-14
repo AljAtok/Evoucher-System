@@ -1842,8 +1842,15 @@ class Redeem extends CI_Controller {
 			exit;
 		}
 		
-
-		
+		if(empty($added_info)){
+			$msg = 'Customer Name must not be blank.';
+			$response_data = array(
+				'result'  => 0,
+				'html' => $this->alert_template($msg, FALSE)
+			);
+			echo json_encode($response_data);
+			exit;
+		}
 		
 		$coupon_select = 'a.*, b.coupon_cat_name, d.coupon_scope_masking, d.coupon_transaction_header_id, d.coupon_transaction_header_added';
         $join_coupon = array(
@@ -1882,7 +1889,7 @@ class Redeem extends CI_Controller {
 			$trans_hdr_details = '';
 
 			if($coupon_cat_id != 7){
-				$msg = 'Voucher category is not allowed in your access.';
+				$msg = 'Voucher category is not allowed in your redeem access.';
 				$response_data = array(
 					'result'  => 0,
 					'html' => $this->alert_template($msg, FALSE)
@@ -1891,242 +1898,38 @@ class Redeem extends CI_Controller {
 				exit;
 			}
 
-			
-
-            if($use < $coupon_qty){ // Valid coupon
-                if($today_date <= $coupon_end){// Check coupon if expired
-                    if($today_date >= $coupon_start){//Check coupon if redeemd date is started
-
-                        $order_no = '';
-                        $counter = TRUE;
-                        while($counter){
-                            $reference_no = 'CPN' . generate_random_coupon(6);
-
-                            $check_ref = $this->main->check_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_reference_code' => $reference_no));
-
-                            if($check_ref == FALSE){
-                                $counter = FALSE;
-                            }
-                        }
-
-                        $set_redeem = array(
-                            'redeem_type_id' => 1,
-                            'redeemed_coupon_log_reference_code' => $reference_no,
-                            'redeemed_coupon_log_code' => $message,
-                            'redeemed_coupon_log_contact_number' => $mobile,
-                            'redeem_coupon_gateway' => '',
-                            'sms_server_timestamp' => '',
-                            'redeemed_coupon_log_added' => date_now(),
-                            'redeemed_coupon_log_status' => 1,
-							'outlet_ifs' => $outlet_ifs,
-							'outlet_name' => $outlet_name,
-							'staff_code' => $staff_code,
-							'staff_name' => $staff_name,
-							'outlet_code' => $outlet_code,
-							'bc_code' => $bc_code,
-							'user_id' => $user_id,
-							'user_agent' => $device_info['user_agent'],
-							'detected_os' => $device_info['detected_os'],
-							'browser' => $device_info['browser'],
-							'device_type' => $device_info['device_type'],
-							'ip_address' => $device_info['ip_address'],
-							'added_info' => $added_info,
-                        );
-
-                        $insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
-                        if($insert_redeem['result'] == TRUE){
-                            $redeemed_coupon_log_id = $insert_redeem['id'];
-                            $new_count = $use + 1;
-                            $set_coupon = array('coupon_use' => $new_count);
-                            $where_coupon = array('coupon_id' => $coupon_id);
-
-                            $update_coupon = $this->main->update_data('coupon_tbl', $set_coupon, $where_coupon);
-                            if($update_coupon == TRUE){
-                                if($coupon_type == 1){ //* STANDARD COUPON
-                                    if($value_type == 1){ // For percentage Discount
-                                        if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
-
-                                            $sms = 'Ang '.SYS_NAME.' mo ay valid worth ' . $amount . '% at valid NATIONWIDE. Ito ay ' . $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
-                                        }else{ //Find valid BC
-                                            
-                                            $bc = $this->_get_bc($coupon_id);
-
-                                            $sms = 'Ang '.SYS_NAME.' mo ay valid worth ' . $amount . '% discount at valid sa ' . $bc .'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
-                                        }
-                                    }elseif($value_type == 2){ //Flat amount Discount
-                                        if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
-
-                                            $sms = 'Ang '.SYS_NAME.' mo ay valid worth P' . $amount . ' discount at valid NATIONWIDE. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
-                                        }else{ //Find valid BC
-                                            
-                                            $bc = $this->_get_bc($coupon_id);
-
-                                            $sms = 'Ang '.SYS_NAME.' mo ay valid worth P' . $amount . ' discount at valid sa ' . $bc .'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
-                                        }
-                                    }
-
-                                    $result = 1;
-                                    // $send_sms = send_sms($mobile, $sms, 'BAVI-TEST4321', 'CHOOKS');
-									$send_sms = TRUE;
-
-                                    $set_outgoing = array(
-                                        'redeem_outgoing_sms' => $sms,
-                                        'redeem_outgoing_no' => $mobile,
-                                        'redeem_outgoing_response' => $send_sms,
-                                        'redeem_outgoing_added' => date_now(),
-                                        'redeem_outgoing_status' => 1,
-										'redeem_outgoing_outlet_ifs' => $outlet_ifs,
-										'redeem_outgoing_outlet_name' => $outlet_name,
-										'redeem_outgoing_staff_code' => $staff_code,
-										'redeem_outgoing_staff_name' => $staff_name,
-										'redeem_outgoing_outlet_code' => $outlet_code,
-										'redeem_outgoing_bc_code' => $bc_code,
-										'user_id' => $user_id
-                                    );
-
-                                    $insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing, TRUE);
-                                }elseif($coupon_type == 2){ //* PRODUCT COUPON
-                                    if($value_type == 1){ //* For percentage Discount
-                                        if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
-                                            if($check_coupon['info']->is_orc == 1){ // check if ORC only
-                                                if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
-													$amount_product = '1 ORC';
-													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details);
-                                                }else{
-													$amount_product = 'worth ' . $amount . '% discount ng ORC';
-													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details);
-                                                }
-                                            }else{
-                                                $prod = $this->_get_prod($coupon_id);
-                                                if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
-													$amount_product = '1 '.$prod;
-													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details);
-                                                }else{
-													$amount_product = 'worth ' . $amount . '% discount ng ' . $prod;
-													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details);
-                                                }
-                                            }
-                                        }else{ //* Find valid BC
-                                            $bc = $scope_masking == '' ? $this->_get_bc($coupon_id) : $scope_masking;
-                                            if($check_coupon['info']->is_orc == 1){ // check if ORC only
-                                                if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
-													$amount_product = '1 ORC';
-													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details);
-                                                }else{
-													$amount_product = 'worth ' . $amount . '% discount ng ORC';
-													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details);
-                                                }
-                                            }else{
-                                                $prod = $this->_get_prod($coupon_id);
-                                                if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
-													$amount_product = '1 '.$prod;
-													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details);
-                                                }else{
-													$amount_product = 'worth ' . $amount . '% discount ng ' . $prod;
-													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details);
-                                                }
-                                            }
-                                        }
-                                    }elseif($value_type == 2){ //* Flat amount Discount
-                                        if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
-                                            if($check_coupon['info']->is_orc == 1){ // check if ORC only
-												$amount_product = $amount . ' discount para sa ORC';
-												$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details);
-                                            }else{
-												$prod = $this->_get_prod($coupon_id);
-												$amount_product = $amount . ' discount para sa ' . $prod;
-												$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details);
-                                            }
-                                        }else{ //* Find valid BC
-                                            $bc = $scope_masking == '' ? $this->_get_bc($coupon_id) : $scope_masking;
-                                            if($check_coupon['info']->is_orc == 1){ // check if ORC only
-												$amount_product = $amount . ' discount para sa ORC';
-												$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details);
-                                            }else{
-                                                $prod = $this->_get_prod($coupon_id);
-												$amount_product = $amount . ' discount para sa ' . $prod;
-												$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details);
-                                            }
-                                        }
-                                    }
-
-                                    $result = 1;
-                                    // $send_sms = send_sms($mobile, $sms, 'BAVI-TEST4321', 'CHOOKS');
-									$send_sms = TRUE;
-
-                                    $set_outgoing = array(
-                                        'redeem_outgoing_sms' => $sms,
-                                        'redeem_outgoing_no' => $mobile,
-                                        'redeem_outgoing_response' => $send_sms,
-                                        'redeem_outgoing_added' => date_now(),
-                                        'redeem_outgoing_status' => 1,
-										'redeem_outgoing_outlet_ifs' => $outlet_ifs,
-										'redeem_outgoing_outlet_name' => $outlet_name,
-										'redeem_outgoing_staff_code' => $staff_code,
-										'redeem_outgoing_staff_name' => $staff_name,
-										'redeem_outgoing_outlet_code' => $outlet_code,
-										'redeem_outgoing_bc_code' => $bc_code,
-										'user_id' => $user_id
-                                    );
-
-                                    $insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing, TRUE);
-                                }else{ //* Invalid Coupon Type
-                                    $result = 0;
-                                    $sms = $this->_invalid_response_msg(['type' => 'invalid_type']);
-
-									$new_count--;
-									$set_coupon = array('coupon_use' => $new_count);
-									$where_coupon = array('coupon_id' => $coupon_id);
-
-									$update_coupon = $this->main->update_data('coupon_tbl', $set_coupon, $where_coupon);
-
-									$update_redeem = $this->main->update_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_status' => '2'), array('redeemed_coupon_log_id' => $redeemed_coupon_log_id));
-                                }
-
-                                $outgoing_id = $insert_outgoing['id'];
-
-                                $update_redeem = $this->main->update_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_response' => $sms), array('redeemed_coupon_log_id' => $redeemed_coupon_log_id));
-
-                                $insert_con = $this->main->insert_data('redeem_coupon_tbl', array('redeemed_coupon_log_id' => $redeemed_coupon_log_id, 'coupon_id' => $coupon_id, 'redeem_outgoing_id' => $outgoing_id, 'redeem_coupon_added' => date_now(), 'redeem_coupon_status' => 1));
-                            }else{ //* Error while updating data
-                                $result = 0;
-                                $sms = 'Error while updating data. Please try again';
-
-                                $update_redeem = $this->main->update_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_status' => 2, 'redeemed_coupon_log_response' => $sms), array('redeemed_coupon_log_id' => $redeemed_coupon_log_id));
-                                
-
-                                $set_outgoing = array(
-                                    'redeem_outgoing_sms' => $sms,
-                                    'redeem_outgoing_no' => $mobile,
-                                    'redeem_outgoing_response' => '',
-                                    'redeem_outgoing_added' => date_now(),
-                                    'redeem_outgoing_status' => 1,
-									'redeem_outgoing_outlet_ifs' => $outlet_ifs,
-									'redeem_outgoing_outlet_name' => $outlet_name,
-									'redeem_outgoing_staff_code' => $staff_code,
-									'redeem_outgoing_staff_name' => $staff_name,
-									'redeem_outgoing_outlet_code' => $outlet_code,
-									'redeem_outgoing_bc_code' => $bc_code,
-									'user_id' => $user_id
-                                );
-
-                                $insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
-                            }
-                        }else{ //* Error while inserting data
-                            
-                            $result = 0;
-                            $sms = 'Error while processing. Please try again';
-
-                            $set_redeem = array(
-                                'redeem_type_id' => 1,
-                                'redeemed_coupon_log_reference_code' => '',
-                                'redeemed_coupon_log_code' => $message,
-                                'redeemed_coupon_log_contact_number' => $mobile,
-                                'redeem_coupon_gateway' => '',
-                                'sms_server_timestamp' => '',
-                                'redeemed_coupon_log_response' => $sms,
-                                'redeemed_coupon_log_added' => date_now(),
-                                'redeemed_coupon_log_status' => 2,
+			//* LINK THE COUPON TO PROMO WINNER
+			$join = array(
+				'survey_reference_tbl b' => 'a.survey_ref_id = b.survey_ref_id'
+			);
+			$promo_winner = $this->main->get_join('survey_winners_tbl a', $join, true, false, false, 'b.*', ['a.coupon_id' => $coupon_id, 'a.survey_winner_status' => 1, 'a.survey_winner_validated' => 1, 'b.status' => 1]);
+			$winner_name = !empty($promo_winner) ? $promo_winner->name : '';
+			if(!empty($winner_name)){
+				if($use < $coupon_qty){ // Valid coupon
+					if($today_date <= $coupon_end){// Check coupon if expired
+						if($today_date >= $coupon_start){//Check coupon if redeemd date is started
+	
+							$order_no = '';
+							$counter = TRUE;
+							while($counter){
+								$reference_no = 'CPN' . generate_random_coupon(6);
+	
+								$check_ref = $this->main->check_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_reference_code' => $reference_no));
+	
+								if($check_ref == FALSE){
+									$counter = FALSE;
+								}
+							}
+	
+							$set_redeem = array(
+								'redeem_type_id' => 1,
+								'redeemed_coupon_log_reference_code' => $reference_no,
+								'redeemed_coupon_log_code' => $message,
+								'redeemed_coupon_log_contact_number' => $mobile,
+								'redeem_coupon_gateway' => '',
+								'sms_server_timestamp' => '',
+								'redeemed_coupon_log_added' => date_now(),
+								'redeemed_coupon_log_status' => 1,
 								'outlet_ifs' => $outlet_ifs,
 								'outlet_name' => $outlet_name,
 								'staff_code' => $staff_code,
@@ -2140,16 +1943,273 @@ class Redeem extends CI_Controller {
 								'device_type' => $device_info['device_type'],
 								'ip_address' => $device_info['ip_address'],
 								'added_info' => $added_info,
-                            );
-
-                            $insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
-
-                            $set_outgoing = array(
-                                'redeem_outgoing_sms' => $sms,
-                                'redeem_outgoing_no' => $mobile,
-                                'redeem_outgoing_response' => '',
-                                'redeem_outgoing_added' => date_now(),
-                                'redeem_outgoing_status' => 1,
+							);
+	
+							$insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+							if($insert_redeem['result'] == TRUE){
+								$redeemed_coupon_log_id = $insert_redeem['id'];
+								$new_count = $use + 1;
+								$set_coupon = array('coupon_use' => $new_count);
+								$where_coupon = array('coupon_id' => $coupon_id);
+	
+								$update_coupon = $this->main->update_data('coupon_tbl', $set_coupon, $where_coupon);
+								if($update_coupon == TRUE){
+									if($coupon_type == 1){ //* STANDARD COUPON
+										if($value_type == 1){ // For percentage Discount
+											if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
+	
+												$sms = 'Ang '.SYS_NAME.' mo ay valid worth ' . $amount . '% at valid NATIONWIDE. Ito ay ' . $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+											}else{ //Find valid BC
+												
+												$bc = $this->_get_bc($coupon_id);
+	
+												$sms = 'Ang '.SYS_NAME.' mo ay valid worth ' . $amount . '% discount at valid sa ' . $bc .'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+											}
+										}elseif($value_type == 2){ //Flat amount Discount
+											if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
+	
+												$sms = 'Ang '.SYS_NAME.' mo ay valid worth P' . $amount . ' discount at valid NATIONWIDE. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+											}else{ //Find valid BC
+												
+												$bc = $this->_get_bc($coupon_id);
+	
+												$sms = 'Ang '.SYS_NAME.' mo ay valid worth P' . $amount . ' discount at valid sa ' . $bc .'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+											}
+										}
+	
+										$result = 1;
+										// $send_sms = send_sms($mobile, $sms, 'BAVI-TEST4321', 'CHOOKS');
+										$send_sms = TRUE;
+	
+										$set_outgoing = array(
+											'redeem_outgoing_sms' => $sms,
+											'redeem_outgoing_no' => $mobile,
+											'redeem_outgoing_response' => $send_sms,
+											'redeem_outgoing_added' => date_now(),
+											'redeem_outgoing_status' => 1,
+											'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+											'redeem_outgoing_outlet_name' => $outlet_name,
+											'redeem_outgoing_staff_code' => $staff_code,
+											'redeem_outgoing_staff_name' => $staff_name,
+											'redeem_outgoing_outlet_code' => $outlet_code,
+											'redeem_outgoing_bc_code' => $bc_code,
+											'user_id' => $user_id
+										);
+	
+										$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing, TRUE);
+									}elseif($coupon_type == 2){ //* PRODUCT COUPON
+										if($value_type == 1){ //* For percentage Discount
+											if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
+												if($check_coupon['info']->is_orc == 1){ // check if ORC only
+													if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
+														$amount_product = '1 ORC';
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+													}else{
+														$amount_product = 'worth ' . $amount . '% discount ng ORC';
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+													}
+												}else{
+													$prod = $this->_get_prod($coupon_id);
+													if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
+														$amount_product = '1 '.$prod;
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+													}else{
+														$amount_product = 'worth ' . $amount . '% discount ng ' . $prod;
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+													}
+												}
+											}else{ //* Find valid BC
+												$bc = $scope_masking == '' ? $this->_get_bc($coupon_id) : $scope_masking;
+												if($check_coupon['info']->is_orc == 1){ // check if ORC only
+													if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
+														$amount_product = '1 ORC';
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details, $winner_name);
+													}else{
+														$amount_product = 'worth ' . $amount . '% discount ng ORC';
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details);
+													}
+												}else{
+													$prod = $this->_get_prod($coupon_id);
+													if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
+														$amount_product = '1 '.$prod;
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details, $winner_name);
+													}else{
+														$amount_product = 'worth ' . $amount . '% discount ng ' . $prod;
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details);
+													}
+												}
+											}
+										}elseif($value_type == 2){ //* Flat amount Discount
+											if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
+												if($check_coupon['info']->is_orc == 1){ // check if ORC only
+													$amount_product = $amount . ' discount para sa ORC';
+													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+												}else{
+													$prod = $this->_get_prod($coupon_id);
+													$amount_product = $amount . ' discount para sa ' . $prod;
+													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+												}
+											}else{ //* Find valid BC
+												$bc = $scope_masking == '' ? $this->_get_bc($coupon_id) : $scope_masking;
+												if($check_coupon['info']->is_orc == 1){ // check if ORC only
+													$amount_product = $amount . ' discount para sa ORC';
+													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details, $winner_name);
+												}else{
+													$prod = $this->_get_prod($coupon_id);
+													$amount_product = $amount . ' discount para sa ' . $prod;
+													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details, $winner_name);
+												}
+											}
+										}
+	
+										$result = 1;
+										// $send_sms = send_sms($mobile, $sms, 'BAVI-TEST4321', 'CHOOKS');
+										$send_sms = TRUE;
+	
+										$set_outgoing = array(
+											'redeem_outgoing_sms' => $sms,
+											'redeem_outgoing_no' => $mobile,
+											'redeem_outgoing_response' => $send_sms,
+											'redeem_outgoing_added' => date_now(),
+											'redeem_outgoing_status' => 1,
+											'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+											'redeem_outgoing_outlet_name' => $outlet_name,
+											'redeem_outgoing_staff_code' => $staff_code,
+											'redeem_outgoing_staff_name' => $staff_name,
+											'redeem_outgoing_outlet_code' => $outlet_code,
+											'redeem_outgoing_bc_code' => $bc_code,
+											'user_id' => $user_id
+										);
+	
+										$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing, TRUE);
+									}else{ //* Invalid Coupon Type
+										$result = 0;
+										$sms = $this->_invalid_response_msg(['type' => 'invalid_type']);
+	
+										$new_count--;
+										$set_coupon = array('coupon_use' => $new_count);
+										$where_coupon = array('coupon_id' => $coupon_id);
+	
+										$update_coupon = $this->main->update_data('coupon_tbl', $set_coupon, $where_coupon);
+	
+										$update_redeem = $this->main->update_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_status' => '2'), array('redeemed_coupon_log_id' => $redeemed_coupon_log_id));
+									}
+	
+									$outgoing_id = $insert_outgoing['id'];
+	
+									$update_redeem = $this->main->update_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_response' => $sms), array('redeemed_coupon_log_id' => $redeemed_coupon_log_id));
+	
+									$insert_con = $this->main->insert_data('redeem_coupon_tbl', array('redeemed_coupon_log_id' => $redeemed_coupon_log_id, 'coupon_id' => $coupon_id, 'redeem_outgoing_id' => $outgoing_id, 'redeem_coupon_added' => date_now(), 'redeem_coupon_status' => 1));
+								}else{ //* Error while updating data
+									$result = 0;
+									$sms = 'Error while updating data. Please try again';
+	
+									$update_redeem = $this->main->update_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_status' => 2, 'redeemed_coupon_log_response' => $sms), array('redeemed_coupon_log_id' => $redeemed_coupon_log_id));
+									
+	
+									$set_outgoing = array(
+										'redeem_outgoing_sms' => $sms,
+										'redeem_outgoing_no' => $mobile,
+										'redeem_outgoing_response' => '',
+										'redeem_outgoing_added' => date_now(),
+										'redeem_outgoing_status' => 1,
+										'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+										'redeem_outgoing_outlet_name' => $outlet_name,
+										'redeem_outgoing_staff_code' => $staff_code,
+										'redeem_outgoing_staff_name' => $staff_name,
+										'redeem_outgoing_outlet_code' => $outlet_code,
+										'redeem_outgoing_bc_code' => $bc_code,
+										'user_id' => $user_id
+									);
+	
+									$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
+								}
+							}else{ //* Error while inserting data
+								
+								$result = 0;
+								$sms = 'Error while processing. Please try again';
+	
+								$set_redeem = array(
+									'redeem_type_id' => 1,
+									'redeemed_coupon_log_reference_code' => '',
+									'redeemed_coupon_log_code' => $message,
+									'redeemed_coupon_log_contact_number' => $mobile,
+									'redeem_coupon_gateway' => '',
+									'sms_server_timestamp' => '',
+									'redeemed_coupon_log_response' => $sms,
+									'redeemed_coupon_log_added' => date_now(),
+									'redeemed_coupon_log_status' => 2,
+									'outlet_ifs' => $outlet_ifs,
+									'outlet_name' => $outlet_name,
+									'staff_code' => $staff_code,
+									'staff_name' => $staff_name,
+									'outlet_code' => $outlet_code,
+									'bc_code' => $bc_code,
+									'user_id' => $user_id,
+									'user_agent' => $device_info['user_agent'],
+									'detected_os' => $device_info['detected_os'],
+									'browser' => $device_info['browser'],
+									'device_type' => $device_info['device_type'],
+									'ip_address' => $device_info['ip_address'],
+									'added_info' => $added_info,
+								);
+	
+								$insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+	
+								$set_outgoing = array(
+									'redeem_outgoing_sms' => $sms,
+									'redeem_outgoing_no' => $mobile,
+									'redeem_outgoing_response' => '',
+									'redeem_outgoing_added' => date_now(),
+									'redeem_outgoing_status' => 1,
+									'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+									'redeem_outgoing_outlet_name' => $outlet_name,
+									'redeem_outgoing_staff_code' => $staff_code,
+									'redeem_outgoing_staff_name' => $staff_name,
+									'redeem_outgoing_outlet_code' => $outlet_code,
+									'redeem_outgoing_bc_code' => $bc_code,
+									'user_id' => $user_id
+								);
+	
+								$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
+							}
+						}else{ //* redemption has not yet started
+							$result = 0;
+							$params = ['type' => 'redemption_not_started', 'coupon_start' => $coupon_start];
+							$sms = $this->_invalid_response_msg($params);
+							$set_redeem = array(
+								'redeem_type_id' => 1,
+								'redeemed_coupon_log_reference_code' => '',
+								'redeemed_coupon_log_code' => $message,
+								'redeemed_coupon_log_contact_number' => $mobile,
+								'redeem_coupon_gateway' => '',
+								'sms_server_timestamp' => '',
+								'redeemed_coupon_log_response' => $sms,
+								'redeemed_coupon_log_added' => date_now(),
+								'redeemed_coupon_log_status' => 2,
+								'outlet_ifs' => $outlet_ifs,
+								'outlet_name' => $outlet_name,
+								'staff_code' => $staff_code,
+								'staff_name' => $staff_name,
+								'outlet_code' => $outlet_code,
+								'bc_code' => $bc_code,
+								'user_id' => $user_id,
+								'user_agent' => $device_info['user_agent'],
+								'detected_os' => $device_info['detected_os'],
+								'browser' => $device_info['browser'],
+								'device_type' => $device_info['device_type'],
+								'ip_address' => $device_info['ip_address'],
+								'added_info' => $added_info,
+							);
+	
+							$insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+	
+							$set_outgoing = array(
+								'redeem_outgoing_sms' => $sms,
+								'redeem_outgoing_no' => $mobile,
+								'redeem_outgoing_response' => '',
+								'redeem_outgoing_added' => date_now(),
+								'redeem_outgoing_status' => 1,
 								'redeem_outgoing_outlet_ifs' => $outlet_ifs,
 								'redeem_outgoing_outlet_name' => $outlet_name,
 								'redeem_outgoing_staff_code' => $staff_code,
@@ -2157,24 +2217,25 @@ class Redeem extends CI_Controller {
 								'redeem_outgoing_outlet_code' => $outlet_code,
 								'redeem_outgoing_bc_code' => $bc_code,
 								'user_id' => $user_id
-                            );
-
-                            $insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
-                        }
-                    }else{ //* redemption has not yet started
-                        $result = 0;
-                        $params = ['type' => 'redemption_not_started', 'coupon_start' => $coupon_start];
-						$sms = $this->_invalid_response_msg($params);
-                        $set_redeem = array(
-                            'redeem_type_id' => 1,
-                            'redeemed_coupon_log_reference_code' => '',
-                            'redeemed_coupon_log_code' => $message,
-                            'redeemed_coupon_log_contact_number' => $mobile,
-                            'redeem_coupon_gateway' => '',
-                            'sms_server_timestamp' => '',
-                            'redeemed_coupon_log_response' => $sms,
-                            'redeemed_coupon_log_added' => date_now(),
-                            'redeemed_coupon_log_status' => 2,
+							);
+	
+							$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
+						}
+					}else{ //* Invalid, coupon is expired
+						
+						$result = 0;
+						$sms = $this->_invalid_response_msg(['type' => 'expired']);
+	
+						$set_redeem = array(
+							'redeem_type_id' => 1,
+							'redeemed_coupon_log_reference_code' => '',
+							'redeemed_coupon_log_code' => $message,
+							'redeemed_coupon_log_contact_number' => $mobile,
+							'redeem_coupon_gateway' => '',
+							'sms_server_timestamp' => '',
+							'redeemed_coupon_log_response' => $sms,
+							'redeemed_coupon_log_added' => date_now(),
+							'redeemed_coupon_log_status' => 2,
 							'outlet_ifs' => $outlet_ifs,
 							'outlet_name' => $outlet_name,
 							'staff_code' => $staff_code,
@@ -2188,16 +2249,16 @@ class Redeem extends CI_Controller {
 							'device_type' => $device_info['device_type'],
 							'ip_address' => $device_info['ip_address'],
 							'added_info' => $added_info,
-                        );
-
-                        $insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
-
-                        $set_outgoing = array(
-                            'redeem_outgoing_sms' => $sms,
-                            'redeem_outgoing_no' => $mobile,
-                            'redeem_outgoing_response' => '',
-                            'redeem_outgoing_added' => date_now(),
-                            'redeem_outgoing_status' => 1,
+						);
+	
+						$insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+	
+						$set_outgoing = array(
+							'redeem_outgoing_sms' => $sms,
+							'redeem_outgoing_no' => $mobile,
+							'redeem_outgoing_response' => '',
+							'redeem_outgoing_added' => date_now(),
+							'redeem_outgoing_status' => 1,
 							'redeem_outgoing_outlet_ifs' => $outlet_ifs,
 							'redeem_outgoing_outlet_name' => $outlet_name,
 							'redeem_outgoing_staff_code' => $staff_code,
@@ -2205,25 +2266,47 @@ class Redeem extends CI_Controller {
 							'redeem_outgoing_outlet_code' => $outlet_code,
 							'redeem_outgoing_bc_code' => $bc_code,
 							'user_id' => $user_id
-                        );
-
-                        $insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
-                    }
-                }else{ //* Invalid, coupon is expired
-                    
-                    $result = 0;
-                    $sms = $this->_invalid_response_msg(['type' => 'expired']);
-
-                    $set_redeem = array(
-                        'redeem_type_id' => 1,
-                        'redeemed_coupon_log_reference_code' => '',
-                        'redeemed_coupon_log_code' => $message,
-                        'redeemed_coupon_log_contact_number' => $mobile,
-                        'redeem_coupon_gateway' => '',
-                        'sms_server_timestamp' => '',
-                        'redeemed_coupon_log_response' => $sms,
-                        'redeemed_coupon_log_added' => date_now(),
-                        'redeemed_coupon_log_status' => 2,
+						);
+	
+						$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
+					}
+				}else{ //* e-Voucher was already redeemed
+					$result = 0;
+					// $sms = 'Sorry '.SYS_NAME.' was already redeemed.';
+					$filter = array(
+						'redeemed_coupon_log_code'		=> $message,
+						'redeemed_coupon_log_status'	=> 1
+					);
+					$check_voucher_code = $this->main->check_data('redeemed_coupon_log_tbl', $filter, TRUE);
+					if($check_voucher_code['result'] == TRUE){
+						$redeemer_number = $check_voucher_code['info']->redeemed_coupon_log_contact_number;
+						$redeemer_outlet_ifs = $check_voucher_code['info']->outlet_ifs;
+						$redeemer_outlet_name = $check_voucher_code['info']->outlet_name;
+						$redeemer_staff_name = $check_voucher_code['info']->staff_name;
+						$redeemer_ts = $check_voucher_code['info']->redeemed_coupon_log_added;
+	
+						$params = [
+							'type' 							=> 'already_redeemed_old',
+							'redeemer_ts_date' 				=> date_format(date_create($redeemer_ts),"M d, Y"),
+							'redeemer_ts_time' 				=> date_format(date_create($redeemer_ts),"h:i:s A"),
+							'redeemer_number' 				=> $redeemer_number,
+						];
+						$sms = $this->_invalid_response_msg($params);
+						
+					} else {
+						$sms = 'Sorry, Ang '.SEC_SYS_NAME.' CODE ay REDEEMED na.';
+					}
+	
+					$set_redeem = array(
+						'redeem_type_id' => 1,
+						'redeemed_coupon_log_reference_code' => '',
+						'redeemed_coupon_log_code' => $message,
+						'redeemed_coupon_log_contact_number' => $mobile,
+						'redeem_coupon_gateway' => '',
+						'sms_server_timestamp' => '',
+						'redeemed_coupon_log_response' => $sms,
+						'redeemed_coupon_log_added' => date_now(),
+						'redeemed_coupon_log_status' => 2,
 						'outlet_ifs' => $outlet_ifs,
 						'outlet_name' => $outlet_name,
 						'staff_code' => $staff_code,
@@ -2237,16 +2320,16 @@ class Redeem extends CI_Controller {
 						'device_type' => $device_info['device_type'],
 						'ip_address' => $device_info['ip_address'],
 						'added_info' => $added_info,
-                    );
-
-                    $insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
-
-                    $set_outgoing = array(
-                        'redeem_outgoing_sms' => $sms,
-                        'redeem_outgoing_no' => $mobile,
-                        'redeem_outgoing_response' => '',
-                        'redeem_outgoing_added' => date_now(),
-                        'redeem_outgoing_status' => 1,
+					);
+	
+					$insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+	
+					$set_outgoing = array(
+						'redeem_outgoing_sms' => $sms,
+						'redeem_outgoing_no' => $mobile,
+						'redeem_outgoing_response' => '',
+						'redeem_outgoing_added' => date_now(),
+						'redeem_outgoing_status' => 1,
 						'redeem_outgoing_outlet_ifs' => $outlet_ifs,
 						'redeem_outgoing_outlet_name' => $outlet_name,
 						'redeem_outgoing_staff_code' => $staff_code,
@@ -2254,36 +2337,21 @@ class Redeem extends CI_Controller {
 						'redeem_outgoing_outlet_code' => $outlet_code,
 						'redeem_outgoing_bc_code' => $bc_code,
 						'user_id' => $user_id
-                    );
-
-                    $insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
-                }
-            }else{ //* e-Voucher was already redeemed
-                $result = 0;
-                // $sms = 'Sorry '.SYS_NAME.' was already redeemed.';
-				$filter = array(
-					'redeemed_coupon_log_code'		=> $message,
-					'redeemed_coupon_log_status'	=> 1
-				);
-				$check_voucher_code = $this->main->check_data('redeemed_coupon_log_tbl', $filter, TRUE);
-				if($check_voucher_code['result'] == TRUE){
-					$redeemer_number = $check_voucher_code['info']->redeemed_coupon_log_contact_number;
-					$redeemer_outlet_ifs = $check_voucher_code['info']->outlet_ifs;
-					$redeemer_outlet_name = $check_voucher_code['info']->outlet_name;
-					$redeemer_staff_name = $check_voucher_code['info']->staff_name;
-					$redeemer_ts = $check_voucher_code['info']->redeemed_coupon_log_added;
-
-					$params = [
-						'type' 							=> 'already_redeemed_old',
-						'redeemer_ts_date' 				=> date_format(date_create($redeemer_ts),"M d, Y"),
-						'redeemer_ts_time' 				=> date_format(date_create($redeemer_ts),"h:i:s A"),
-						'redeemer_number' 				=> $redeemer_number,
-					];
-					$sms = $this->_invalid_response_msg($params);
+					);
+	
+					$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
 					
-				} else {
-					$sms = 'Sorry, Ang '.SEC_SYS_NAME.' CODE ay REDEEMED na.';
 				}
+			} else {
+				//* promo winner invalid
+
+				$result = 0;
+				$params = [
+					'type' 							=> 'promo_winner_invalid',
+					'coupon_code' 					=> $coupon_code,
+				];
+				$sms = $this->_invalid_response_msg($params);
+
 
                 $set_redeem = array(
                     'redeem_type_id' => 1,
@@ -2328,8 +2396,8 @@ class Redeem extends CI_Controller {
                 );
 
                 $insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
-                //Invalid and already redeem
-            }
+			}
+
         }else{ //* Invalid and already redeem
             
             $result = 0;
@@ -2515,18 +2583,20 @@ class Redeem extends CI_Controller {
         return $os;
     }
 
-	function _response_msg($value_type, $category, $reference_no, $amount_product, $location){
+	function _response_msg($value_type, $category, $reference_no, $amount_product, $location, $trans_hdr_details='', $winner_name = ''){
 		if($value_type == 1){ // PERCENTAGE
-			$old_sms = 'Ang '.SYS_NAME.' mo ay valid ng '.$amount_product .' at valid sa '.$location.'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+			$old_location = $location == 'NATIONWIDE' ? $location : 'sa '.$location;
+			$old_sms = 'Ang '.SYS_NAME.' mo ay valid ng '.$amount_product .' at valid '.$old_location.'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
 			
-			$sms = 'Ang '. $category . ' ay valid para sa '.$amount_product .' with '.$location.' scope. Maaari mo ng itransact sa POS VOUCHER MODULE ang approval code na <strong>' . $reference_no.'</strong>.';
+			$sms = $trans_hdr_details.'Ang '. $category . ' ay valid para sa '.$amount_product .' with '.$location.' scope. Maaari mo ng itransact sa POS VOUCHER MODULE ang approval code na <strong>' . $reference_no.'</strong>.';
 			if($category == "CHOOKSIE QR PROMO EVOUCHER"){
-				$sms = 'Ang '. $category . ' ay valid para sa '.$amount_product .' with '.$location.' scope. Ito ay may approval code na <strong>' . $reference_no.'</strong>.';
+				$sms = 'Ang '. $category . ' ay valid para sa '.$amount_product .' with '.$location.' scope. Ang promo winner nito ay si <strong>'.strtoupper($winner_name).'</strong>. Ito ay may approval code na <strong>' . $reference_no.'</strong>.';
 			}
-		} elseif ($value_type == 2){
-			$old_sms = 'Ang '.SYS_NAME.' mo ay valid worth P' . $amount_product . ' at valid sa '.$location.'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+		} elseif ($value_type == 2){ // FLAT AMOUNT
+			$old_location = $location == 'NATIONWIDE' ? $location : 'sa '.$location;
+			$old_sms = 'Ang '.SYS_NAME.' mo ay valid worth P' . $amount_product . ' at valid sa '.$old_location.'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
 			
-			$sms = 'Ang '. $category . ' ay valid worth P' . $amount_product . ' at '.$location.' scope. Maari mo nang iinput sa POS VOUCHER MODULE ang approval code na <strong>' . $reference_no.'</strong>.';
+			$sms = $trans_hdr_details.'Ang '. $category . ' ay valid worth P' . $amount_product . ' at '.$location.' scope. Maari mo nang iinput sa POS VOUCHER MODULE ang approval code na <strong>' . $reference_no.'</strong>.';
 			
 		}
 		return $sms;
@@ -2534,7 +2604,7 @@ class Redeem extends CI_Controller {
 	}
 
 	function _invalid_response_msg($params){
-
+		
 		if($params['type'] == 'invalid_type'){
 			$sms = 'Error, Invalid '.SEC_SYS_NAME.' Type. Please try again';
 		}
@@ -2555,6 +2625,9 @@ class Redeem extends CI_Controller {
 		}
 		elseif($params['type'] == 'invalid_code'){
 			$sms = 'Sorry, mali ang '.SEC_SYS_NAME.' CODE, i check ng mabuti ang '.SEC_SYS_NAME.' code at siguraduhing tama ang nai-type na code. Subukang i-redeem ulet.';
+		}
+		elseif($params['type'] == 'promo_winner_invalid'){
+			$sms = 'Sorry, ang '.SEC_SYS_NAME.' CODE na ito ay wala pang promo winner na naideklara. I-check ang '.SEC_SYS_NAME.' code at siguraduhing tama ang nai-type na code. Subukang i-redeem ulet.';
 		}
 		else {
 			$sms = 'Sorry, Redemption failed for unknown reason.';

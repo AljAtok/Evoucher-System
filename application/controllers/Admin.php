@@ -833,6 +833,16 @@ class Admin extends CI_Controller {
         $data['content'] = $this->load->view('admin/coupon/redeem_coupon_content_v1', $data, TRUE);
         $this->load->view('admin/templates', $data);
     }
+
+	public function redeem_coupon_emp()
+    {
+		$info      = $this->_require_login();
+		$data['user_id']   = $info['user_id'];
+        $data['title']   = 'Redeem '.SEC_SYS_NAME.'';
+		$data['top_nav']     = $this->load->view('fix/top_nav_content', $data, TRUE);
+        $data['content'] = $this->load->view('admin/coupon/redeem_coupon_emp_content', $data, TRUE);
+		$this->load->view('admin/templates', $data);
+    }
     
 	
 
@@ -5748,6 +5758,688 @@ class Admin extends CI_Controller {
 
     }
 
+	public function enhanced_web_redeem_emp_coupon()
+    {
+        if ($_SERVER['REQUEST_METHOD'] != 'POST') {
+           show_404();
+        }
+
+		$coupon_code = clean_data( strtoupper($this->input->post('code')) );
+		$coupon_code = trim($coupon_code);
+		$added_info = clean_data( strtoupper($this->input->post('added_info')) );
+		$added_info = trim($added_info);
+		$user_id = clean_data($this->input->post('user_id')) != '' ? decode(clean_data($this->input->post('user_id'))) : 0;
+
+		if($user_id == 0){
+			$check_spam_ip = $this->_check_spam_ip('redeem', 15, 300);
+			if($check_spam_ip['success'] === FALSE){
+				$msg = $check_spam_ip['msg'];
+				$response_data = array(
+					'result'  => 0,
+					'html' => $this->alert_template($msg, FALSE)
+				);
+				echo json_encode($response_data);
+				exit;
+			}
+			
+			$check_spam_code = $this->_check_spam_code('redeem', 5, 180, $coupon_code);
+			if($check_spam_code['success'] === FALSE){
+				$msg = $check_spam_code['msg'];
+				$response_data = array(
+					'result'  => 0,
+					'html' => $this->alert_template($msg, FALSE)
+				);
+				echo json_encode($response_data);
+				exit;
+			}
+		}
+
+		$device_info = $this->_get_device_info();
+
+		
+
+        $parent_db   = $GLOBALS['parent_db'];
+        $outlet_ifs = "";
+        $outlet_ifs = trim($outlet_ifs);
+        $crew_code = "";
+        $crew_code = trim($crew_code);
+		$staff_code = $crew_code;
+
+		if(empty($coupon_code)){
+			$msg = 'Voucher Code must not be blank.';
+			$response_data = array(
+				'result'  => 0,
+				'html' => $this->alert_template($msg, FALSE)
+			);
+			echo json_encode($response_data);
+			exit;
+		}
+		
+		if(empty($added_info)){
+			$msg = 'Customer Name must not be blank.';
+			$response_data = array(
+				'result'  => 0,
+				'html' => $this->alert_template($msg, FALSE)
+			);
+			echo json_encode($response_data);
+			exit;
+		}
+		
+		$coupon_select = 'a.*, b.coupon_cat_name, d.coupon_scope_masking, d.coupon_transaction_header_id, d.coupon_transaction_header_added';
+        $join_coupon = array(
+			'coupon_category_tbl b' => "a.coupon_cat_id = b.coupon_cat_id AND a.coupon_status = 1 AND a.coupon_code = '" . $coupon_code . "'",
+			'coupon_transaction_details_tbl c' => 'a.coupon_id = c.coupon_id',
+			'coupon_transaction_header_tbl d' => 'c.coupon_transaction_header_id = d.coupon_transaction_header_id'
+		);
+        $check_coupon = $this->main->check_join('coupon_tbl a', $join_coupon, TRUE, FALSE, FALSE, $coupon_select);
+        $date_now       = strtotime(date("Y-m-d"));
+
+
+		$this->db->trans_start();
+        $message = $coupon_code;
+        $mobile = '';
+		$outlet_code = NULL;
+		$bc_code = NULL;
+		$outlet_name = '';
+		$staff_name = '';
+		
+        if($check_coupon['result'] == TRUE){
+            $coupon_id = $check_coupon['info']->coupon_id;
+            $use = $check_coupon['info']->coupon_use;
+            $coupon_qty = $check_coupon['info']->coupon_qty;
+            $coupon_start = date('Y-m-d', strtotime($check_coupon['info']->coupon_start));
+            $coupon_end = date('Y-m-d', strtotime($check_coupon['info']->coupon_end));
+            $today_date = date('Y-m-d');
+
+            $category = $check_coupon['info']->coupon_cat_name;
+
+            $coupon_type = $check_coupon['info']->coupon_type_id;
+            $value_type = $check_coupon['info']->coupon_value_type_id;
+            $amount = $check_coupon['info']->coupon_amount;
+			$scope_masking = $check_coupon['info']->coupon_scope_masking;
+			$coupon_cat_id = $check_coupon['info']->coupon_cat_id;
+			// $trans_hdr_details = '[ '.$check_coupon['info']->coupon_transaction_header_id.' - '.$check_coupon['info']->coupon_transaction_header_added.' ] ';
+			$trans_hdr_details = '';
+
+			if($coupon_cat_id != 7){
+				$msg = 'Voucher category is not allowed in your redeem access.';
+				$response_data = array(
+					'result'  => 0,
+					'html' => $this->alert_template($msg, FALSE)
+				);
+				echo json_encode($response_data);
+				exit;
+			}
+
+			//* LINK THE COUPON TO PROMO WINNER
+			$join = array(
+				'survey_reference_tbl b' => 'a.survey_ref_id = b.survey_ref_id'
+			);
+			$promo_winner = $this->main->get_join('survey_winners_tbl a', $join, true, false, false, 'b.*', ['a.coupon_id' => $coupon_id, 'a.survey_winner_status' => 1, 'a.survey_winner_validated' => 1, 'b.status' => 1]);
+			$winner_name = !empty($promo_winner) ? $promo_winner->name : '';
+			if(!empty($winner_name)){
+				if($use < $coupon_qty){ // Valid coupon
+					if($today_date <= $coupon_end){// Check coupon if expired
+						if($today_date >= $coupon_start){//Check coupon if redeemd date is started
+	
+							$order_no = '';
+							$counter = TRUE;
+							while($counter){
+								$reference_no = 'CPN' . generate_random_coupon(6);
+	
+								$check_ref = $this->main->check_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_reference_code' => $reference_no));
+	
+								if($check_ref == FALSE){
+									$counter = FALSE;
+								}
+							}
+	
+							$set_redeem = array(
+								'redeem_type_id' => 1,
+								'redeemed_coupon_log_reference_code' => $reference_no,
+								'redeemed_coupon_log_code' => $message,
+								'redeemed_coupon_log_contact_number' => $mobile,
+								'redeem_coupon_gateway' => '',
+								'sms_server_timestamp' => '',
+								'redeemed_coupon_log_added' => date_now(),
+								'redeemed_coupon_log_status' => 1,
+								'outlet_ifs' => $outlet_ifs,
+								'outlet_name' => $outlet_name,
+								'staff_code' => $staff_code,
+								'staff_name' => $staff_name,
+								'outlet_code' => $outlet_code,
+								'bc_code' => $bc_code,
+								'user_id' => $user_id,
+								'user_agent' => $device_info['user_agent'],
+								'detected_os' => $device_info['detected_os'],
+								'browser' => $device_info['browser'],
+								'device_type' => $device_info['device_type'],
+								'ip_address' => $device_info['ip_address'],
+								'added_info' => $added_info,
+							);
+	
+							$insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+							if($insert_redeem['result'] == TRUE){
+								$redeemed_coupon_log_id = $insert_redeem['id'];
+								$new_count = $use + 1;
+								$set_coupon = array('coupon_use' => $new_count);
+								$where_coupon = array('coupon_id' => $coupon_id);
+	
+								$update_coupon = $this->main->update_data('coupon_tbl', $set_coupon, $where_coupon);
+								if($update_coupon == TRUE){
+									if($coupon_type == 1){ //* STANDARD COUPON
+										if($value_type == 1){ // For percentage Discount
+											if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
+	
+												$sms = 'Ang '.SYS_NAME.' mo ay valid worth ' . $amount . '% at valid NATIONWIDE. Ito ay ' . $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+											}else{ //Find valid BC
+												
+												$bc = $this->_get_bc($coupon_id);
+	
+												$sms = 'Ang '.SYS_NAME.' mo ay valid worth ' . $amount . '% discount at valid sa ' . $bc .'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+											}
+										}elseif($value_type == 2){ //Flat amount Discount
+											if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
+	
+												$sms = 'Ang '.SYS_NAME.' mo ay valid worth P' . $amount . ' discount at valid NATIONWIDE. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+											}else{ //Find valid BC
+												
+												$bc = $this->_get_bc($coupon_id);
+	
+												$sms = 'Ang '.SYS_NAME.' mo ay valid worth P' . $amount . ' discount at valid sa ' . $bc .'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+											}
+										}
+	
+										$result = 1;
+										// $send_sms = send_sms($mobile, $sms, 'BAVI-TEST4321', 'CHOOKS');
+										$send_sms = TRUE;
+	
+										$set_outgoing = array(
+											'redeem_outgoing_sms' => $sms,
+											'redeem_outgoing_no' => $mobile,
+											'redeem_outgoing_response' => $send_sms,
+											'redeem_outgoing_added' => date_now(),
+											'redeem_outgoing_status' => 1,
+											'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+											'redeem_outgoing_outlet_name' => $outlet_name,
+											'redeem_outgoing_staff_code' => $staff_code,
+											'redeem_outgoing_staff_name' => $staff_name,
+											'redeem_outgoing_outlet_code' => $outlet_code,
+											'redeem_outgoing_bc_code' => $bc_code,
+											'user_id' => $user_id
+										);
+	
+										$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing, TRUE);
+									}elseif($coupon_type == 2){ //* PRODUCT COUPON
+										if($value_type == 1){ //* For percentage Discount
+											if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
+												if($check_coupon['info']->is_orc == 1){ // check if ORC only
+													if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
+														$amount_product = '1 ORC';
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+													}else{
+														$amount_product = 'worth ' . $amount . '% discount ng ORC';
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+													}
+												}else{
+													$prod = $this->_get_prod($coupon_id);
+													if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
+														$amount_product = '1 '.$prod;
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+													}else{
+														$amount_product = 'worth ' . $amount . '% discount ng ' . $prod;
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+													}
+												}
+											}else{ //* Find valid BC
+												$bc = $scope_masking == '' ? $this->_get_bc($coupon_id) : $scope_masking;
+												if($check_coupon['info']->is_orc == 1){ // check if ORC only
+													if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
+														$amount_product = '1 ORC';
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details, $winner_name);
+													}else{
+														$amount_product = 'worth ' . $amount . '% discount ng ORC';
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details);
+													}
+												}else{
+													$prod = $this->_get_prod($coupon_id);
+													if($check_coupon['info']->coupon_amount == 100){ // Check if full percentage
+														$amount_product = '1 '.$prod;
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details, $winner_name);
+													}else{
+														$amount_product = 'worth ' . $amount . '% discount ng ' . $prod;
+														$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details);
+													}
+												}
+											}
+										}elseif($value_type == 2){ //* Flat amount Discount
+											if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
+												if($check_coupon['info']->is_orc == 1){ // check if ORC only
+													$amount_product = $amount . ' discount para sa ORC';
+													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+												}else{
+													$prod = $this->_get_prod($coupon_id);
+													$amount_product = $amount . ' discount para sa ' . $prod;
+													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, 'NATIONWIDE', $trans_hdr_details, $winner_name);
+												}
+											}else{ //* Find valid BC
+												$bc = $scope_masking == '' ? $this->_get_bc($coupon_id) : $scope_masking;
+												if($check_coupon['info']->is_orc == 1){ // check if ORC only
+													$amount_product = $amount . ' discount para sa ORC';
+													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details, $winner_name);
+												}else{
+													$prod = $this->_get_prod($coupon_id);
+													$amount_product = $amount . ' discount para sa ' . $prod;
+													$sms = $this->_response_msg($value_type, $category, $reference_no, $amount_product, $bc, $trans_hdr_details, $winner_name);
+												}
+											}
+										}
+	
+										$result = 1;
+										// $send_sms = send_sms($mobile, $sms, 'BAVI-TEST4321', 'CHOOKS');
+										$send_sms = TRUE;
+	
+										$set_outgoing = array(
+											'redeem_outgoing_sms' => $sms,
+											'redeem_outgoing_no' => $mobile,
+											'redeem_outgoing_response' => $send_sms,
+											'redeem_outgoing_added' => date_now(),
+											'redeem_outgoing_status' => 1,
+											'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+											'redeem_outgoing_outlet_name' => $outlet_name,
+											'redeem_outgoing_staff_code' => $staff_code,
+											'redeem_outgoing_staff_name' => $staff_name,
+											'redeem_outgoing_outlet_code' => $outlet_code,
+											'redeem_outgoing_bc_code' => $bc_code,
+											'user_id' => $user_id
+										);
+	
+										$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing, TRUE);
+									}else{ //* Invalid Coupon Type
+										$result = 0;
+										$sms = $this->_invalid_response_msg(['type' => 'invalid_type']);
+	
+										$new_count--;
+										$set_coupon = array('coupon_use' => $new_count);
+										$where_coupon = array('coupon_id' => $coupon_id);
+	
+										$update_coupon = $this->main->update_data('coupon_tbl', $set_coupon, $where_coupon);
+	
+										$update_redeem = $this->main->update_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_status' => '2'), array('redeemed_coupon_log_id' => $redeemed_coupon_log_id));
+									}
+	
+									$outgoing_id = $insert_outgoing['id'];
+	
+									$update_redeem = $this->main->update_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_response' => $sms), array('redeemed_coupon_log_id' => $redeemed_coupon_log_id));
+	
+									$insert_con = $this->main->insert_data('redeem_coupon_tbl', array('redeemed_coupon_log_id' => $redeemed_coupon_log_id, 'coupon_id' => $coupon_id, 'redeem_outgoing_id' => $outgoing_id, 'redeem_coupon_added' => date_now(), 'redeem_coupon_status' => 1));
+								}else{ //* Error while updating data
+									$result = 0;
+									$sms = 'Error while updating data. Please try again';
+	
+									$update_redeem = $this->main->update_data('redeemed_coupon_log_tbl', array('redeemed_coupon_log_status' => 2, 'redeemed_coupon_log_response' => $sms), array('redeemed_coupon_log_id' => $redeemed_coupon_log_id));
+									
+	
+									$set_outgoing = array(
+										'redeem_outgoing_sms' => $sms,
+										'redeem_outgoing_no' => $mobile,
+										'redeem_outgoing_response' => '',
+										'redeem_outgoing_added' => date_now(),
+										'redeem_outgoing_status' => 1,
+										'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+										'redeem_outgoing_outlet_name' => $outlet_name,
+										'redeem_outgoing_staff_code' => $staff_code,
+										'redeem_outgoing_staff_name' => $staff_name,
+										'redeem_outgoing_outlet_code' => $outlet_code,
+										'redeem_outgoing_bc_code' => $bc_code,
+										'user_id' => $user_id
+									);
+	
+									$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
+								}
+							}else{ //* Error while inserting data
+								
+								$result = 0;
+								$sms = 'Error while processing. Please try again';
+	
+								$set_redeem = array(
+									'redeem_type_id' => 1,
+									'redeemed_coupon_log_reference_code' => '',
+									'redeemed_coupon_log_code' => $message,
+									'redeemed_coupon_log_contact_number' => $mobile,
+									'redeem_coupon_gateway' => '',
+									'sms_server_timestamp' => '',
+									'redeemed_coupon_log_response' => $sms,
+									'redeemed_coupon_log_added' => date_now(),
+									'redeemed_coupon_log_status' => 2,
+									'outlet_ifs' => $outlet_ifs,
+									'outlet_name' => $outlet_name,
+									'staff_code' => $staff_code,
+									'staff_name' => $staff_name,
+									'outlet_code' => $outlet_code,
+									'bc_code' => $bc_code,
+									'user_id' => $user_id,
+									'user_agent' => $device_info['user_agent'],
+									'detected_os' => $device_info['detected_os'],
+									'browser' => $device_info['browser'],
+									'device_type' => $device_info['device_type'],
+									'ip_address' => $device_info['ip_address'],
+									'added_info' => $added_info,
+								);
+	
+								$insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+	
+								$set_outgoing = array(
+									'redeem_outgoing_sms' => $sms,
+									'redeem_outgoing_no' => $mobile,
+									'redeem_outgoing_response' => '',
+									'redeem_outgoing_added' => date_now(),
+									'redeem_outgoing_status' => 1,
+									'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+									'redeem_outgoing_outlet_name' => $outlet_name,
+									'redeem_outgoing_staff_code' => $staff_code,
+									'redeem_outgoing_staff_name' => $staff_name,
+									'redeem_outgoing_outlet_code' => $outlet_code,
+									'redeem_outgoing_bc_code' => $bc_code,
+									'user_id' => $user_id
+								);
+	
+								$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
+							}
+						}else{ //* redemption has not yet started
+							$result = 0;
+							$params = ['type' => 'redemption_not_started', 'coupon_start' => $coupon_start];
+							$sms = $this->_invalid_response_msg($params);
+							$set_redeem = array(
+								'redeem_type_id' => 1,
+								'redeemed_coupon_log_reference_code' => '',
+								'redeemed_coupon_log_code' => $message,
+								'redeemed_coupon_log_contact_number' => $mobile,
+								'redeem_coupon_gateway' => '',
+								'sms_server_timestamp' => '',
+								'redeemed_coupon_log_response' => $sms,
+								'redeemed_coupon_log_added' => date_now(),
+								'redeemed_coupon_log_status' => 2,
+								'outlet_ifs' => $outlet_ifs,
+								'outlet_name' => $outlet_name,
+								'staff_code' => $staff_code,
+								'staff_name' => $staff_name,
+								'outlet_code' => $outlet_code,
+								'bc_code' => $bc_code,
+								'user_id' => $user_id,
+								'user_agent' => $device_info['user_agent'],
+								'detected_os' => $device_info['detected_os'],
+								'browser' => $device_info['browser'],
+								'device_type' => $device_info['device_type'],
+								'ip_address' => $device_info['ip_address'],
+								'added_info' => $added_info,
+							);
+	
+							$insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+	
+							$set_outgoing = array(
+								'redeem_outgoing_sms' => $sms,
+								'redeem_outgoing_no' => $mobile,
+								'redeem_outgoing_response' => '',
+								'redeem_outgoing_added' => date_now(),
+								'redeem_outgoing_status' => 1,
+								'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+								'redeem_outgoing_outlet_name' => $outlet_name,
+								'redeem_outgoing_staff_code' => $staff_code,
+								'redeem_outgoing_staff_name' => $staff_name,
+								'redeem_outgoing_outlet_code' => $outlet_code,
+								'redeem_outgoing_bc_code' => $bc_code,
+								'user_id' => $user_id
+							);
+	
+							$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
+						}
+					}else{ //* Invalid, coupon is expired
+						
+						$result = 0;
+						$sms = $this->_invalid_response_msg(['type' => 'expired']);
+	
+						$set_redeem = array(
+							'redeem_type_id' => 1,
+							'redeemed_coupon_log_reference_code' => '',
+							'redeemed_coupon_log_code' => $message,
+							'redeemed_coupon_log_contact_number' => $mobile,
+							'redeem_coupon_gateway' => '',
+							'sms_server_timestamp' => '',
+							'redeemed_coupon_log_response' => $sms,
+							'redeemed_coupon_log_added' => date_now(),
+							'redeemed_coupon_log_status' => 2,
+							'outlet_ifs' => $outlet_ifs,
+							'outlet_name' => $outlet_name,
+							'staff_code' => $staff_code,
+							'staff_name' => $staff_name,
+							'outlet_code' => $outlet_code,
+							'bc_code' => $bc_code,
+							'user_id' => $user_id,
+							'user_agent' => $device_info['user_agent'],
+							'detected_os' => $device_info['detected_os'],
+							'browser' => $device_info['browser'],
+							'device_type' => $device_info['device_type'],
+							'ip_address' => $device_info['ip_address'],
+							'added_info' => $added_info,
+						);
+	
+						$insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+	
+						$set_outgoing = array(
+							'redeem_outgoing_sms' => $sms,
+							'redeem_outgoing_no' => $mobile,
+							'redeem_outgoing_response' => '',
+							'redeem_outgoing_added' => date_now(),
+							'redeem_outgoing_status' => 1,
+							'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+							'redeem_outgoing_outlet_name' => $outlet_name,
+							'redeem_outgoing_staff_code' => $staff_code,
+							'redeem_outgoing_staff_name' => $staff_name,
+							'redeem_outgoing_outlet_code' => $outlet_code,
+							'redeem_outgoing_bc_code' => $bc_code,
+							'user_id' => $user_id
+						);
+	
+						$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
+					}
+				}else{ //* e-Voucher was already redeemed
+					$result = 0;
+					// $sms = 'Sorry '.SYS_NAME.' was already redeemed.';
+					$filter = array(
+						'redeemed_coupon_log_code'		=> $message,
+						'redeemed_coupon_log_status'	=> 1
+					);
+					$check_voucher_code = $this->main->check_data('redeemed_coupon_log_tbl', $filter, TRUE);
+					if($check_voucher_code['result'] == TRUE){
+						$redeemer_number = $check_voucher_code['info']->redeemed_coupon_log_contact_number;
+						$redeemer_outlet_ifs = $check_voucher_code['info']->outlet_ifs;
+						$redeemer_outlet_name = $check_voucher_code['info']->outlet_name;
+						$redeemer_staff_name = $check_voucher_code['info']->staff_name;
+						$redeemer_ts = $check_voucher_code['info']->redeemed_coupon_log_added;
+	
+						$params = [
+							'type' 							=> 'already_redeemed_old',
+							'redeemer_ts_date' 				=> date_format(date_create($redeemer_ts),"M d, Y"),
+							'redeemer_ts_time' 				=> date_format(date_create($redeemer_ts),"h:i:s A"),
+							'redeemer_number' 				=> $redeemer_number,
+						];
+						$sms = $this->_invalid_response_msg($params);
+						
+					} else {
+						$sms = 'Sorry, Ang '.SEC_SYS_NAME.' CODE ay REDEEMED na.';
+					}
+	
+					$set_redeem = array(
+						'redeem_type_id' => 1,
+						'redeemed_coupon_log_reference_code' => '',
+						'redeemed_coupon_log_code' => $message,
+						'redeemed_coupon_log_contact_number' => $mobile,
+						'redeem_coupon_gateway' => '',
+						'sms_server_timestamp' => '',
+						'redeemed_coupon_log_response' => $sms,
+						'redeemed_coupon_log_added' => date_now(),
+						'redeemed_coupon_log_status' => 2,
+						'outlet_ifs' => $outlet_ifs,
+						'outlet_name' => $outlet_name,
+						'staff_code' => $staff_code,
+						'staff_name' => $staff_name,
+						'outlet_code' => $outlet_code,
+						'bc_code' => $bc_code,
+						'user_id' => $user_id,
+						'user_agent' => $device_info['user_agent'],
+						'detected_os' => $device_info['detected_os'],
+						'browser' => $device_info['browser'],
+						'device_type' => $device_info['device_type'],
+						'ip_address' => $device_info['ip_address'],
+						'added_info' => $added_info,
+					);
+	
+					$insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+	
+					$set_outgoing = array(
+						'redeem_outgoing_sms' => $sms,
+						'redeem_outgoing_no' => $mobile,
+						'redeem_outgoing_response' => '',
+						'redeem_outgoing_added' => date_now(),
+						'redeem_outgoing_status' => 1,
+						'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+						'redeem_outgoing_outlet_name' => $outlet_name,
+						'redeem_outgoing_staff_code' => $staff_code,
+						'redeem_outgoing_staff_name' => $staff_name,
+						'redeem_outgoing_outlet_code' => $outlet_code,
+						'redeem_outgoing_bc_code' => $bc_code,
+						'user_id' => $user_id
+					);
+	
+					$insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
+					
+				}
+			} else {
+				//* promo winner invalid
+
+				$result = 0;
+				$params = [
+					'type' 							=> 'promo_winner_invalid',
+					'coupon_code' 					=> $coupon_code,
+				];
+				$sms = $this->_invalid_response_msg($params);
+
+
+                $set_redeem = array(
+                    'redeem_type_id' => 1,
+                    'redeemed_coupon_log_reference_code' => '',
+                    'redeemed_coupon_log_code' => $message,
+                    'redeemed_coupon_log_contact_number' => $mobile,
+                    'redeem_coupon_gateway' => '',
+                    'sms_server_timestamp' => '',
+                    'redeemed_coupon_log_response' => $sms,
+                    'redeemed_coupon_log_added' => date_now(),
+                    'redeemed_coupon_log_status' => 2,
+					'outlet_ifs' => $outlet_ifs,
+					'outlet_name' => $outlet_name,
+					'staff_code' => $staff_code,
+					'staff_name' => $staff_name,
+					'outlet_code' => $outlet_code,
+					'bc_code' => $bc_code,
+					'user_id' => $user_id,
+					'user_agent' => $device_info['user_agent'],
+					'detected_os' => $device_info['detected_os'],
+					'browser' => $device_info['browser'],
+					'device_type' => $device_info['device_type'],
+					'ip_address' => $device_info['ip_address'],
+					'added_info' => $added_info,
+                );
+
+                $insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+
+                $set_outgoing = array(
+                    'redeem_outgoing_sms' => $sms,
+                    'redeem_outgoing_no' => $mobile,
+                    'redeem_outgoing_response' => '',
+                    'redeem_outgoing_added' => date_now(),
+                    'redeem_outgoing_status' => 1,
+					'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+					'redeem_outgoing_outlet_name' => $outlet_name,
+					'redeem_outgoing_staff_code' => $staff_code,
+					'redeem_outgoing_staff_name' => $staff_name,
+					'redeem_outgoing_outlet_code' => $outlet_code,
+					'redeem_outgoing_bc_code' => $bc_code,
+					'user_id' => $user_id
+                );
+
+                $insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
+			}
+
+        }else{ //* Invalid and already redeem
+            
+            $result = 0;
+			$sms = $this->_invalid_response_msg(['type' => 'invalid_code']);
+
+            $set_redeem = array(
+                'redeem_type_id' => 1,
+                'redeemed_coupon_log_reference_code' => '',
+                'redeemed_coupon_log_code' => $message,
+                'redeemed_coupon_log_contact_number' => $mobile,
+                'redeem_coupon_gateway' => '',
+                'sms_server_timestamp' => '',
+                'redeemed_coupon_log_response' => $sms,
+                'redeemed_coupon_log_added' => date_now(),
+                'redeemed_coupon_log_status' => 2,
+				'outlet_ifs' => $outlet_ifs,
+				'outlet_name' => $outlet_name,
+				'staff_code' => $staff_code,
+				'staff_name' => $staff_name,
+				'outlet_code' => $outlet_code,
+				'bc_code' => $bc_code,
+				'user_id' => $user_id,
+				'user_agent' => $device_info['user_agent'],
+				'detected_os' => $device_info['detected_os'],
+				'browser' => $device_info['browser'],
+				'device_type' => $device_info['device_type'],
+				'ip_address' => $device_info['ip_address'],
+				'added_info' => $added_info,
+            );
+
+            $insert_redeem = $this->main->insert_data('redeemed_coupon_log_tbl', $set_redeem, TRUE);
+
+            $set_outgoing = array(
+                'redeem_outgoing_sms' => $sms,
+                'redeem_outgoing_no' => $mobile,
+                'redeem_outgoing_response' => '',
+                'redeem_outgoing_added' => date_now(),
+                'redeem_outgoing_status' => 1,
+				'redeem_outgoing_outlet_ifs' => $outlet_ifs,
+				'redeem_outgoing_outlet_name' => $outlet_name,
+				'redeem_outgoing_staff_code' => $staff_code,
+				'redeem_outgoing_staff_name' => $staff_name,
+				'redeem_outgoing_outlet_code' => $outlet_code,
+				'redeem_outgoing_bc_code' => $bc_code,
+				'user_id' => $user_id
+            );
+
+            $insert_outgoing = $this->main->insert_data('redeem_outgoing_tbl', $set_outgoing);
+        }
+
+        if($this->db->trans_status() === FALSE){
+            $this->db->trans_rollback();
+            $sms = ''.SEC_SYS_NAME.' Redeem Failed. Please Try Again!';
+            $result = 0;
+        } else {
+            $this->db->trans_commit();
+        }
+
+		$response_msg = $this->alert_template($sms, $result);
+
+        $response_data = array(
+            'result'  => $result,
+            'html' => $response_msg
+        );
+        echo json_encode($response_data);
+        exit;
+
+    }
+
 	public function _check_spam_ip($prefix, $limit, $cooldown_time) {
 		$this->load->helper('url');
         $ip_address = $this->input->ip_address();  // Get user IP address
@@ -5864,12 +6556,15 @@ class Admin extends CI_Controller {
         return $os;
     }
 
-	function _response_msg($value_type, $category, $reference_no, $amount_product, $location, $trans_hdr_details){
+	function _response_msg($value_type, $category, $reference_no, $amount_product, $location, $trans_hdr_details='', $winner_name = ''){
 		if($value_type == 1){ // PERCENTAGE
 			$old_location = $location == 'NATIONWIDE' ? $location : 'sa '.$location;
 			$old_sms = 'Ang '.SYS_NAME.' mo ay valid ng '.$amount_product .' at valid '.$old_location.'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
 			
 			$sms = $trans_hdr_details.'Ang '. $category . ' ay valid para sa '.$amount_product .' with '.$location.' scope. Maaari mo ng itransact sa POS VOUCHER MODULE ang approval code na <strong>' . $reference_no.'</strong>.';
+			if($category == "CHOOKSIE QR PROMO EVOUCHER"){
+				$sms = 'Ang '. $category . ' ay valid para sa '.$amount_product .' with '.$location.' scope. Ang promo winner nito ay si <strong>'.strtoupper($winner_name).'</strong>. Ito ay may approval code na <strong>' . $reference_no.'</strong>.';
+			}
 		} elseif ($value_type == 2){ // FLAT AMOUNT
 			$old_location = $location == 'NATIONWIDE' ? $location : 'sa '.$location;
 			$old_sms = 'Ang '.SYS_NAME.' mo ay valid worth P' . $amount_product . ' at valid sa '.$old_location.'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
@@ -5894,7 +6589,8 @@ class Admin extends CI_Controller {
 			$sms = 'Sorry, Expired na ang '.SEC_SYS_NAME.' CODE.';
 		}
 		elseif($params['type'] == 'already_redeemed_old'){
-			$sms = 'Sorry, Ang '.SEC_SYS_NAME.' CODE ay REDEEMED na noong '.$params['redeemer_ts_date'].' sa oras na '.$params['redeemer_ts_time'].' ng '.$params['redeemer_number'].'.';
+			$suffix = $params['redeemer_number'] ? ' ng '.$params['redeemer_number'].'.' : '.';
+			$sms = 'Sorry, Ang '.SEC_SYS_NAME.' CODE ay REDEEMED na noong '.$params['redeemer_ts_date'].' sa oras na '.$params['redeemer_ts_time'].$suffix;
 		}
 		elseif($params['type'] == 'already_redeemed_new'){
 			// $sms = 'Sorry, Ang '.SEC_SYS_NAME.' CODE ay REDEEMED na ni '.$params['redeemer_staff_name'].' sa '.$params['redeemer_outlet_name'].' noong '.$params['redeemer_ts_date'].' sa oras na '.$params['redeemer_ts_time'].'.';
@@ -5902,6 +6598,9 @@ class Admin extends CI_Controller {
 		}
 		elseif($params['type'] == 'invalid_code'){
 			$sms = 'Sorry, mali ang '.SEC_SYS_NAME.' CODE, i check ng mabuti ang '.SEC_SYS_NAME.' code at siguraduhing tama ang nai-type na code. Subukang i-redeem ulet.';
+		}
+		elseif($params['type'] == 'promo_winner_invalid'){
+			$sms = 'Sorry, ang '.SEC_SYS_NAME.' CODE na ito ay wala pang promo winner na naideklara. I-check ang '.SEC_SYS_NAME.' code at siguraduhing tama ang nai-type na code. Subukang i-redeem ulet.';
 		}
 		else {
 			$sms = 'Sorry, Redemption failed for unknown reason.';
@@ -9984,14 +10683,15 @@ class Admin extends CI_Controller {
 						break;
 					}
 					$set = [
-						'survey_ref_id'			=> $survey_ref_id,
-						'ref_id'				=> $ref_id,
-						'form_id'				=> $form_id,
-						'coupon_id'				=> $coupon_ids[$i],
-						'survey_winner_status'	=> 1,
-						'created_at'			=> date('Y-m-d H:i:s'),
-						'survey_winner_email'	=> '',
-						'created_by'			=> $user_id,
+						'survey_ref_id'					=> $survey_ref_id,
+						'ref_id'						=> $ref_id,
+						'form_id'						=> $form_id,
+						'coupon_id'						=> $coupon_ids[$i],
+						'survey_winner_status'			=> 1,
+						'created_at'					=> date('Y-m-d H:i:s'),
+						'survey_winner_email'			=> '',
+						'survey_winner_email_result'	=> 0,
+						'created_by'					=> $user_id,
 					];
 					$this->main->insert_data('survey_winners_tbl', $set, TRUE);
 
@@ -10157,7 +10857,11 @@ class Admin extends CI_Controller {
 				];
 			}
 
-			echo json_encode($data);
+			$this->output
+				->set_status_header(200)
+				->set_content_type('application/json')
+				->set_output(json_encode($data))
+				->_display();
 			exit;
 		}
 	}
@@ -10204,7 +10908,8 @@ class Admin extends CI_Controller {
 						"id" => $participants->survey_ref_id,
 						"name" => $participants->name,
 						"ref_no" => $participants->ref_no
-					] : null
+					] : null,
+					'not_validated_winners_count' => $this->_get_not_validated_winner_count(date("Y-m-d")),
 				];
 				$stat_header = $participants ? 200 : 404;
 	
@@ -10412,6 +11117,7 @@ class Admin extends CI_Controller {
 		$parent_db = $GLOBALS['parent_db'];
 		$error_msg = "Error! Please try again.";
 		$success_msg = "Success! Winner validated.";
+		$should_be_winner = 8;
 
 		if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 			// Accept JSON payload
@@ -10420,16 +11126,24 @@ class Admin extends CI_Controller {
 
 			$survey_winner_id = isset($data['id']) ? clean_data($data['id']) : null;
 			if(!empty($survey_winner_id)){
-				$survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id');
+				$survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id, created_at');
 				$survey_ref_id = !empty($survey_ref) ? $survey_ref->survey_ref_id : null;
 				$response = [];
 				if (!empty($survey_ref_id)) {
-					$send_winner_email = $this->email_survey_winner(5, $survey_ref_id);
-					if ($send_winner_email['result']) {
-						$success_msg = $send_winner_email['Message'];
-						$error_msg = "";
+					$winning_date = $survey_ref->created_at ?? null;
+					$winning_date = $winning_date ? date('Y-m-d', strtotime($winning_date)) : null;
+					$winner_count = $this->_get_validated_winner_count($winning_date);
+					if($winner_count < $should_be_winner){
+						$send_winner_email = $this->email_survey_winner(5, $survey_ref_id);
+						if ($send_winner_email['result']) {
+							$success_msg = $send_winner_email['Message'];
+							$error_msg = "";
+						} else {
+							$error_msg = $send_winner_email['Message'];
+							$success_msg = "";
+						}
 					} else {
-						$error_msg = $send_winner_email['Message'];
+						$error_msg = "Validated winner limit reached for the draw date. Current validated winner(s): {$winner_count}.";
 						$success_msg = "";
 					}
 				} else {
@@ -10533,6 +11247,99 @@ class Admin extends CI_Controller {
 			->_display();
 		exit;
 	}
+	
+	public function undo_winner() {
+		$info      = $this->_require_login();
+		$parent_db = $GLOBALS['parent_db'];
+		$error_msg = "Error! Please try again.";
+		$success_msg = "Success! Winner validated.";
+
+		if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+			// Accept JSON payload
+			$raw = file_get_contents("php://input");
+			$data = json_decode($raw, true);
+			$should_be_winner = 8;
+
+			$survey_winner_id = isset($data['id']) ? clean_data($data['id']) : null;
+			if(!empty($survey_winner_id)){
+				$survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id, coupon_id, created_at');
+				$survey_ref_id = !empty($survey_ref) ? $survey_ref->survey_ref_id : null;
+				$response = [];
+				if (!empty($survey_ref_id)) {
+					$winning_date = $survey_ref->created_at ?? null;
+					$winning_date = $winning_date ? date('Y-m-d', strtotime($winning_date)) : null;
+					$winner_count = $this->_get_validated_winner_count($winning_date);
+					if($winner_count >= $should_be_winner){
+						$set = [
+							'survey_winner_status' => 2,
+							'survey_winner_validated' => 0,
+							'modified_at' => date('Y-m-d H:i:s'),
+							'modified_by' => decode($info['user_id'])
+						];
+						$where = ['survey_winner_id' => $survey_winner_id];
+						$update = $this->main->update_data('survey_winners_tbl', $set, $where);
+						if (!$update) {
+							$error_msg = "Failed to revert winner. Please try again.";
+							$success_msg = "";	
+						} else {
+							$coupon_id = $survey_ref->coupon_id ?? null;
+							$set = [
+								"survey_freebie_cal_status" => 1,
+								"is_awarded" => 0
+							];
+							$where = ['coupon_id' => $coupon_id];
+							$update = $this->main->update_data('survey_freebie_calendar_tbl', $set, $where);
+							if (!$update) {
+								$error_msg = "Failed to free-up winner prize. Please try again.";
+								$success_msg = "";	
+							} else {
+								$success_msg = "Winner reverted successfully.";
+								$error_msg = "";
+							}
+						}
+					} else {
+						$error_msg = "Undo is prohibited if the validated winners is less than {$should_be_winner}. Current validated winner(s): {$winner_count}.";
+						$success_msg = "";
+					}
+				} else {
+					$error_msg = "Invalid survey reference ID.";
+					$success_msg = "";
+				}
+			} else {
+				$error_msg = "Invalid winner ID.";
+				$success_msg = "";
+			}
+		} else {
+			$error_msg = "Invalid request method.";
+			$success_msg = "";
+		}
+		$stat_header = $error_msg ? 400 : 200;
+		$response = [
+			"messages" => [
+				"error" => $error_msg,
+				"success" => $success_msg
+			]
+		];
+
+		$this->output
+			->set_status_header($stat_header)
+			->set_content_type('application/json')
+			->set_output(json_encode($response))
+			->_display();
+		exit;
+	}
+
+	private function _get_validated_winner_count($winning_date){
+		$survey_winner = $this->main->get_data('survey_winners_tbl', ['survey_winner_status' => 1, 'survey_winner_validated' => 1, 'DATE(created_at)' => $winning_date], true, 'COUNT(survey_winner_id) as winner_count');
+		$winner_count = !empty($survey_winner) ? $survey_winner->winner_count : 0;
+		return $winner_count;
+	}
+	
+	private function _get_not_validated_winner_count($winning_date){
+		$survey_winner = $this->main->get_data('survey_winners_tbl', ['survey_winner_status' => 1, 'survey_winner_validated' => 0, 'DATE(created_at)' => $winning_date], true, 'COUNT(survey_winner_id) as winner_count');
+		$winner_count = !empty($survey_winner) ? $survey_winner->winner_count : 0;
+		return $winner_count;
+	}
 
 	private function _get_participants($form_id, $order_by = FALSE, $select = FALSE, $limit_to_yesterday = TRUE, $filter = FALSE, $with_winner = FALSE){
 		$sibling_db 							= sibling_one_db();
@@ -10558,7 +11365,7 @@ class Admin extends CI_Controller {
 			$bcs = implode(',', $bcs);
 
 			if(!$filter){
-				$filter									= 'status = 1 and form_id = '.$form_id.' and survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status = 1 and form_id= '.$form_id.') and created_at >= "'.$start_date.'" AND created_at <= "'.$end_date.'"';
+				$filter									= 'status = 1 and form_id = '.$form_id.' and survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status IN (1, 0) and form_id= '.$form_id.') and created_at >= "'.$start_date.'" AND created_at <= "'.$end_date.'"';
 			}
 			if($select){
 				$join 									= [

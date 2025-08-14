@@ -78,6 +78,10 @@
                     </li>
 
 					<li>
+                        <a href="<?=base_url('admin/redeem-coupon-emp')?>"><strong><span class="fas fa-fw fa-stamp"></span> Redeem <?=SEC_SYS_NAME?></strong></a>
+                    </li>
+
+					<li>
                         <a href="<?=base_url('admin/redeem-logs')?>"><strong><span class="far fa-fw fa-file-alt"></span> Redeem Logs</strong></a>
                     </li>
 					

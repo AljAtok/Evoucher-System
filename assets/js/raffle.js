@@ -161,6 +161,7 @@ async function drawWinner() {
 			charSpinners.forEach((spinner) => (spinner.style.transition = "none"));
 			throw new Error(result.messages.error || "Failed to draw winner");
 		}
+		const not_validated_winners_count = result.not_validated_winners_count;
 		const winner = result.winner;
 		if (!winner.ref_no || winner.ref_no.length !== 9) {
 			charSpinners.forEach((spinner) => (spinner.style.transition = "none"));
@@ -238,7 +239,7 @@ async function drawWinner() {
 		// showMessage("Searching for winner based on the ref number...", "info");
 		let searchingInterval;
 		let dots = 0;
-		winnerDisplay.innerHTML = `<span class='text-gray-500 text-lg'>Searching for winner based on the ref number<span id='searchingDots'></span></span>`;
+		winnerDisplay.innerHTML = `<span class='text-gray-500 text-lg'>Searching for #${not_validated_winners_count} not validated winner based on the ref number<span id='searchingDots'></span></span>`;
 		winnerDisplay.classList.add("show");
 		const dotsSpan = document.getElementById("searchingDots");
 		searchingInterval = setInterval(() => {
@@ -569,7 +570,11 @@ async function renderTabs() {
 				row.winner_id
 			}", "${
 				row.name
-			}")'>Reject</button><button class='btn btn-primary btn-xs' onclick='showParticipantInfo(${JSON.stringify(
+			}")'>Reject</button><button class='btn btn-warning btn-xs mr-1' onclick='confirmUndoWinner("${
+				row.winner_id
+			}", "${
+				row.name
+			}")'>Undo</button><button class='btn btn-primary btn-xs' onclick='showParticipantInfo(${JSON.stringify(
 				row
 			)})'>View</button>`,
 		"Search not validated winners..."
@@ -656,6 +661,12 @@ window.confirmRejectWinner = function (id, name) {
 		`<button class='btn btn-danger' onclick='rejectWinner("${id}")'>Yes, Reject</button><button class='btn btn-secondary' onclick='closeModal()'>Cancel</button>`
 	);
 };
+window.confirmUndoWinner = function (id, name) {
+	showModal(
+		`Undo winner <b>${name}</b>? The winner will be removed from the list and returned to the Participants list.<br>This action cannot be undone.`,
+		`<button class='btn btn-warning' onclick='undoWinner("${id}")'>Yes, Undo</button><button class='btn btn-secondary' onclick='closeModal()'>Cancel</button>`
+	);
+};
 window.confirmBackToNotValidated = function (id, name) {
 	showModal(
 		`Move <b>${name}</b> back to Not Validated?`,
@@ -733,6 +744,31 @@ window.rejectWinner = async function (id) {
 		}
 		showMessage(
 			result.messages?.success || "Winner rejected successfully!",
+			"info",
+			8000
+		);
+		// showMessage("Winner validated successfully!", "info");
+		await fetchParticipants().then(renderTabs); // Optionally refresh tabs after validation
+	} catch (error) {
+		showMessage(`Error: ${error.message}`, "error");
+	}
+};
+
+window.undoWinner = async function (id) {
+	closeModal();
+	showMessage("Undoing winner...", "info", 8000);
+	try {
+		const response = await fetch(`${API_BASE_URL}/undo-winner`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ id }),
+		});
+		const result = await response.json();
+		if (!response.ok) {
+			throw new Error(result.messages?.error || "Failed to reject winner");
+		}
+		showMessage(
+			result.messages?.success || "Winner reverted successfully!",
 			"info",
 			8000
 		);

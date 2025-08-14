@@ -102,14 +102,15 @@ class Raffle extends CI_Controller {
 						break;
 					}
 					$set = [
-						'survey_ref_id'			=> $survey_ref_id,
-						'ref_id'				=> $ref_id,
-						'form_id'				=> $form_id,
-						'coupon_id'				=> $coupon_ids[$i],
-						'survey_winner_status'	=> 1,
-						'created_at'			=> date('Y-m-d H:i:s'),
-						'survey_winner_email'	=> '',
-						'created_by'			=> $user_id,
+						'survey_ref_id'					=> $survey_ref_id,
+						'ref_id'						=> $ref_id,
+						'form_id'						=> $form_id,
+						'coupon_id'						=> $coupon_ids[$i],
+						'survey_winner_status'			=> 1,
+						'created_at'					=> date('Y-m-d H:i:s'),
+						'survey_winner_email'			=> '',
+						'survey_winner_email_result'	=> 0,
+						'created_by'					=> $user_id,
 					];
 					$this->main->insert_data('survey_winners_tbl', $set, TRUE);
 
@@ -233,56 +234,6 @@ class Raffle extends CI_Controller {
 		}
 	}
 
-	private function _get_participants($form_id, $order_by = FALSE, $select = FALSE, $limit_to_yesterday = TRUE, $filter = FALSE, $with_winner = FALSE){
-		$sibling_db 							= sibling_one_db();
-		$parent_db 								= parent_db();
-		$check_form 							= $this->main->check_data("{$sibling_db}.form_tbl", ['form_id' => $form_id], TRUE);
-		$start_date								= $check_form['result'] ? $check_form['info']->start_date : date("Y-m-d H:i:s");
-		$end_date								= $check_form['result'] ? $check_form['info']->end_date : date("Y-m-d H:i:s");
-		if($limit_to_yesterday){
-			$end_date = date('Y-m-d 23:59:59', strtotime('-1 day'));
-		}
-
-		$get_participating_bcs 					= $this->main->get_data('survey_participating_bcs_tbl', ['form_id' => $form_id, 'survey_participating_bc_status' => 1]);
-		$join 									= [
-			"{$parent_db}.bc_tbl b" 			=> 'a.bc_id = b.bc_id'
-		];
-		$get_participating_bcs 					= $this->main->get_join('survey_participating_bcs_tbl a', $join, FALSE, FALSE, FALSE, 'a.*, b.bc_name', ['a.form_id' => $form_id, 'a.survey_participating_bc_status' => 1]);
-
-		$participants = [];
-		$bcs = [];
-		
-		if(!empty($get_participating_bcs)){
-			$bcs = array_column($get_participating_bcs, 'bc_id');
-			$bcs = implode(',', $bcs);
-
-			if(!$filter){
-				$filter									= 'status = 1 and form_id = '.$form_id.' and survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status = 1 and form_id= '.$form_id.') and created_at >= "'.$start_date.'" AND created_at <= "'.$end_date.'"';
-			}
-			if($select){
-				$join 									= [
-					"{$parent_db}.provinces_tbl b" 		=> 'a.province_id = b.province_id and b.bc_id IN ('.$bcs.')',
-					"{$parent_db}.town_groups_tbl c" 	=> 'a.town_group_id = c.town_group_id',
-					"{$parent_db}.barangay_tbl d" 		=> 'a.barangay_id = d.barangay_id',
-				];
-
-				if($with_winner){
-					$join['survey_winners_tbl e, LEFT'] = 'a.survey_ref_id = e.survey_ref_id AND e.survey_winner_status = 1 AND e.form_id = '.$form_id.' AND e.survey_winner_validated = 1';
-				}
-				$participants         					= $this->main->get_join('survey_reference_tbl a', $join, FALSE, $order_by, FALSE, $select, $filter);
-			}
-			
-		}
-
-		$result = [
-			'bcs' => $bcs,
-			'participants' => $participants,
-			'start_date' => $start_date,
-			'end_date' => $end_date
-		];
-		return $result;
-	}
-
 	public function participants()
 	{
 		$info      = $this->_require_login();
@@ -325,7 +276,11 @@ class Raffle extends CI_Controller {
 				];
 			}
 
-			echo json_encode($data);
+			$this->output
+				->set_status_header(200)
+				->set_content_type('application/json')
+				->set_output(json_encode($data))
+				->_display();
 			exit;
 		}
 	}
@@ -372,7 +327,8 @@ class Raffle extends CI_Controller {
 						"id" => $participants->survey_ref_id,
 						"name" => $participants->name,
 						"ref_no" => $participants->ref_no
-					] : null
+					] : null,
+					'not_validated_winners_count' => $this->_get_not_validated_winner_count(date("Y-m-d")),
 				];
 				$stat_header = $participants ? 200 : 404;
 	
@@ -580,6 +536,7 @@ class Raffle extends CI_Controller {
 		$parent_db = $GLOBALS['parent_db'];
 		$error_msg = "Error! Please try again.";
 		$success_msg = "Success! Winner validated.";
+		$should_be_winner = 8;
 
 		if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 			// Accept JSON payload
@@ -588,16 +545,24 @@ class Raffle extends CI_Controller {
 
 			$survey_winner_id = isset($data['id']) ? clean_data($data['id']) : null;
 			if(!empty($survey_winner_id)){
-				$survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id');
+				$survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id, created_at');
 				$survey_ref_id = !empty($survey_ref) ? $survey_ref->survey_ref_id : null;
 				$response = [];
 				if (!empty($survey_ref_id)) {
-					$send_winner_email = $this->email_survey_winner(5, $survey_ref_id);
-					if ($send_winner_email['result']) {
-						$success_msg = $send_winner_email['Message'];
-						$error_msg = "";
+					$winning_date = $survey_ref->created_at ?? null;
+					$winning_date = $winning_date ? date('Y-m-d', strtotime($winning_date)) : null;
+					$winner_count = $this->_get_validated_winner_count($winning_date);
+					if($winner_count < $should_be_winner){
+						$send_winner_email = $this->email_survey_winner(5, $survey_ref_id);
+						if ($send_winner_email['result']) {
+							$success_msg = $send_winner_email['Message'];
+							$error_msg = "";
+						} else {
+							$error_msg = $send_winner_email['Message'];
+							$success_msg = "";
+						}
 					} else {
-						$error_msg = $send_winner_email['Message'];
+						$error_msg = "Validated winner limit reached for the draw date. Current validated winner(s): {$winner_count}.";
 						$success_msg = "";
 					}
 				} else {
@@ -700,6 +665,149 @@ class Raffle extends CI_Controller {
 			->set_output(json_encode($response))
 			->_display();
 		exit;
+	}
+	
+	public function undo_winner() {
+		$info      = $this->_require_login();
+		$parent_db = $GLOBALS['parent_db'];
+		$error_msg = "Error! Please try again.";
+		$success_msg = "Success! Winner validated.";
+
+		if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+			// Accept JSON payload
+			$raw = file_get_contents("php://input");
+			$data = json_decode($raw, true);
+			$should_be_winner = 8;
+
+			$survey_winner_id = isset($data['id']) ? clean_data($data['id']) : null;
+			if(!empty($survey_winner_id)){
+				$survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id, coupon_id, created_at');
+				$survey_ref_id = !empty($survey_ref) ? $survey_ref->survey_ref_id : null;
+				$response = [];
+				if (!empty($survey_ref_id)) {
+					$winning_date = $survey_ref->created_at ?? null;
+					$winning_date = $winning_date ? date('Y-m-d', strtotime($winning_date)) : null;
+					$winner_count = $this->_get_validated_winner_count($winning_date);
+					if($winner_count >= $should_be_winner){
+						$set = [
+							'survey_winner_status' => 2,
+							'survey_winner_validated' => 0,
+							'modified_at' => date('Y-m-d H:i:s'),
+							'modified_by' => decode($info['user_id'])
+						];
+						$where = ['survey_winner_id' => $survey_winner_id];
+						$update = $this->main->update_data('survey_winners_tbl', $set, $where);
+						if (!$update) {
+							$error_msg = "Failed to revert winner. Please try again.";
+							$success_msg = "";	
+						} else {
+							$coupon_id = $survey_ref->coupon_id ?? null;
+							$set = [
+								"survey_freebie_cal_status" => 1,
+								"is_awarded" => 0
+							];
+							$where = ['coupon_id' => $coupon_id];
+							$update = $this->main->update_data('survey_freebie_calendar_tbl', $set, $where);
+							if (!$update) {
+								$error_msg = "Failed to free-up winner prize. Please try again.";
+								$success_msg = "";	
+							} else {
+								$success_msg = "Winner reverted successfully.";
+								$error_msg = "";
+							}
+						}
+					} else {
+						$error_msg = "Undo is prohibited if the validated winners is less than {$should_be_winner}. Current validated winner(s): {$winner_count}.";
+						$success_msg = "";
+					}
+				} else {
+					$error_msg = "Invalid survey reference ID.";
+					$success_msg = "";
+				}
+			} else {
+				$error_msg = "Invalid winner ID.";
+				$success_msg = "";
+			}
+		} else {
+			$error_msg = "Invalid request method.";
+			$success_msg = "";
+		}
+		$stat_header = $error_msg ? 400 : 200;
+		$response = [
+			"messages" => [
+				"error" => $error_msg,
+				"success" => $success_msg
+			]
+		];
+
+		$this->output
+			->set_status_header($stat_header)
+			->set_content_type('application/json')
+			->set_output(json_encode($response))
+			->_display();
+		exit;
+	}
+
+	private function _get_validated_winner_count($winning_date){
+		$survey_winner = $this->main->get_data('survey_winners_tbl', ['survey_winner_status' => 1, 'survey_winner_validated' => 1, 'DATE(created_at)' => $winning_date], true, 'COUNT(survey_winner_id) as winner_count');
+		$winner_count = !empty($survey_winner) ? $survey_winner->winner_count : 0;
+		return $winner_count;
+	}
+	
+	private function _get_not_validated_winner_count($winning_date){
+		$survey_winner = $this->main->get_data('survey_winners_tbl', ['survey_winner_status' => 1, 'survey_winner_validated' => 0, 'DATE(created_at)' => $winning_date], true, 'COUNT(survey_winner_id) as winner_count');
+		$winner_count = !empty($survey_winner) ? $survey_winner->winner_count : 0;
+		return $winner_count;
+	}
+	
+	private function _get_participants($form_id, $order_by = FALSE, $select = FALSE, $limit_to_yesterday = TRUE, $filter = FALSE, $with_winner = FALSE){
+		$sibling_db 							= sibling_one_db();
+		$parent_db 								= parent_db();
+		$check_form 							= $this->main->check_data("{$sibling_db}.form_tbl", ['form_id' => $form_id], TRUE);
+		$start_date								= $check_form['result'] ? $check_form['info']->start_date : date("Y-m-d H:i:s");
+		$end_date								= $check_form['result'] ? $check_form['info']->end_date : date("Y-m-d H:i:s");
+		if($limit_to_yesterday){
+			$end_date = date('Y-m-d 23:59:59', strtotime('-1 day'));
+		}
+
+		$get_participating_bcs 					= $this->main->get_data('survey_participating_bcs_tbl', ['form_id' => $form_id, 'survey_participating_bc_status' => 1]);
+		$join 									= [
+			"{$parent_db}.bc_tbl b" 			=> 'a.bc_id = b.bc_id'
+		];
+		$get_participating_bcs 					= $this->main->get_join('survey_participating_bcs_tbl a', $join, FALSE, FALSE, FALSE, 'a.*, b.bc_name', ['a.form_id' => $form_id, 'a.survey_participating_bc_status' => 1]);
+
+		$participants = [];
+		$bcs = [];
+		
+		if(!empty($get_participating_bcs)){
+			$bcs = array_column($get_participating_bcs, 'bc_id');
+			$bcs = implode(',', $bcs);
+
+			if(!$filter){
+				$filter									= 'status = 1 and form_id = '.$form_id.' and survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status IN (1, 0) and form_id= '.$form_id.') and created_at >= "'.$start_date.'" AND created_at <= "'.$end_date.'"';
+			}
+			if($select){
+				$join 									= [
+					"{$parent_db}.provinces_tbl b" 		=> 'a.province_id = b.province_id and b.bc_id IN ('.$bcs.')',
+					"{$parent_db}.town_groups_tbl c" 	=> 'a.town_group_id = c.town_group_id',
+					"{$parent_db}.barangay_tbl d" 		=> 'a.barangay_id = d.barangay_id',
+				];
+
+				if($with_winner){
+					$join['survey_winners_tbl e, LEFT'] = 'a.survey_ref_id = e.survey_ref_id AND e.survey_winner_status = 1 AND e.form_id = '.$form_id.' AND e.survey_winner_validated = 1';
+				}
+				$participants         					= $this->main->get_join('survey_reference_tbl a', $join, FALSE, $order_by, FALSE, $select, $filter);
+			}
+			
+		}
+
+		$result = [
+			'bcs' => $bcs,
+			'participants' => $participants,
+			'start_date' => $start_date,
+			'end_date' => $end_date
+		];
+		return $result;
 	}
 	
 	private function _get_winner_query($select, $order_by, $where){
