@@ -657,14 +657,23 @@ window.confirmValidateWinner = function (id, name, email, prize) {
 };
 window.confirmRejectWinner = function (id, name) {
 	showModal(
-		`Reject winner <b>${name}</b>? This action cannot be undone.`,
-		`<button class='btn btn-danger' onclick='rejectWinner("${id}")'>Yes, Reject</button><button class='btn btn-secondary' onclick='closeModal()'>Cancel</button>`
+		`Are you sure to reject winner <b>${name}</b>? This action cannot be undone.<br>
+		<div class="mt-2">
+			<label for="rejectRemarks" class="block text-sm font-medium text-gray-700">Remarks:</label>
+			<textarea id="rejectRemarks" class="border rounded w-full p-2 mt-1" rows="2" placeholder="Enter reason for rejection..."></textarea>
+			<div id="rejectRemarksError" class="text-red-600 text-xs mt-1" style="display:none;"></div>
+		</div>`,
+		`<button class='btn btn-danger' onclick='rejectWinnerWithRemarks("${id}")'>Yes, Reject</button><button class='btn btn-secondary' onclick='closeModal()'>Cancel</button>`
 	);
 };
 window.confirmUndoWinner = function (id, name) {
 	showModal(
-		`Undo winner <b>${name}</b>? The winner will be removed from the list and returned to the Participants list.<br>This action cannot be undone.`,
-		`<button class='btn btn-warning' onclick='undoWinner("${id}")'>Yes, Undo</button><button class='btn btn-secondary' onclick='closeModal()'>Cancel</button>`
+		`Are you sure to undo winner <b>${name}</b>? The winner will be removed from the list<br>and returned to the Participants list.<br>This action cannot be undone.<br>
+		<div class="mt-2">
+			<label for="undoRemarks" class="block text-sm font-medium text-gray-700">Remarks:</label>
+			<textarea id="undoRemarks" class="border rounded w-full p-2 mt-1" rows="2" placeholder="Enter remarks of undoing..."></textarea>
+		</div>`,
+		`<button class='btn btn-warning' onclick='undoWinnerWithRemarks("${id}")'>Yes, Undo</button><button class='btn btn-secondary' onclick='closeModal()'>Cancel</button>`
 	);
 };
 window.confirmBackToNotValidated = function (id, name) {
@@ -674,13 +683,24 @@ window.confirmBackToNotValidated = function (id, name) {
 	);
 };
 window.showParticipantInfo = function (row) {
+	function escapeHtml(text) {
+		if (!text) return "";
+		return text
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;")
+			.replace(/'/g, "&#039;");
+	}
 	let infoHtml = `<div class='mb-2 font-semibold text-lg'>Participant Info</div><div class='space-y-2'>`;
 	for (const [k, v] of Object.entries(row)) {
 		if (k === "or_photo" && v) {
 			infoHtml += `<div style='position:relative;display:inline-block;'>
 				<span class='font-semibold capitalize'>OR Photo:</span><br>
-				<a href='${v}' target='_blank'>
-					<img src='${v}' alt='OR Photo' style='max-width:320px;max-height:426px;border-radius:8px;border:1px solid #e5e7eb;margin-top:4px;box-shadow:0 2px 8px #0001;'>
+				<a href='${escapeHtml(v)}' target='_blank'>
+					<img src='${escapeHtml(
+						v
+					)}' alt='OR Photo' style='max-width:320px;max-height:426px;border-radius:8px;border:1px solid #e5e7eb;margin-top:4px;box-shadow:0 2px 8px #0001;'>
 				</a>
 				<button onclick='zoomOrPhoto("${encodeURIComponent(
 					v
@@ -689,15 +709,22 @@ window.showParticipantInfo = function (row) {
 				</button>
 			</div>`;
 		} else if (k === "entry_created_at" && v) {
-			infoHtml += `<div><span class='font-semibold capitalize'>${k.replace(
-				/_/g,
-				" "
-			)}:</span> <span>${v}</span></div>`;
+			infoHtml += `<div><span class='font-semibold capitalize'>${escapeHtml(
+				k.replace(/_/g, " ")
+			)}:</span> <span>${escapeHtml(v)}</span></div>`;
+		} else if (k.toLowerCase().includes("reason") && v) {
+			// For remarks/reason fields, escape and convert newlines to <br>
+			let val = escapeHtml(v);
+			// Replace literal \n and \r\n with <br>
+			val = val.replace(/\\r\\n|\\n/g, "<br>");
+			val = val.replace(/\r\n|\n/g, "<br>");
+			infoHtml += `<div><span class='font-semibold capitalize'>${escapeHtml(
+				k.replace(/_/g, " ")
+			)}:</span> <span>${val}</span></div>`;
 		} else {
-			infoHtml += `<div><span class='font-semibold capitalize'>${k.replace(
-				/_/g,
-				" "
-			)}:</span> <span>${v || ""}</span></div>`;
+			infoHtml += `<div><span class='font-semibold capitalize'>${escapeHtml(
+				k.replace(/_/g, " ")
+			)}:</span> <span>${escapeHtml(v || "")}</span></div>`;
 		}
 	}
 	infoHtml += "</div>";
@@ -729,14 +756,27 @@ window.validateWinner = async function (id) {
 		showMessage(`Error: ${error.message}`, "error");
 	}
 };
-window.rejectWinner = async function (id) {
+window.rejectWinnerWithRemarks = async function (id) {
+	const remarks = document.getElementById("rejectRemarks")?.value.trim();
+	const errorDiv = document.getElementById("rejectRemarksError");
+	if (!remarks) {
+		if (errorDiv) {
+			errorDiv.textContent = "Remarks are required to reject a winner.";
+			errorDiv.style.display = "block";
+		}
+		document.getElementById("rejectRemarks").focus();
+		return;
+	} else if (errorDiv) {
+		errorDiv.textContent = "";
+		errorDiv.style.display = "none";
+	}
 	closeModal();
 	showMessage("Rejecting winner...", "info", 8000);
 	try {
 		const response = await fetch(`${API_BASE_URL}/reject-winner`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ id }),
+			body: JSON.stringify({ id, remarks }),
 		});
 		const result = await response.json();
 		if (!response.ok) {
@@ -747,33 +787,32 @@ window.rejectWinner = async function (id) {
 			"info",
 			8000
 		);
-		// showMessage("Winner validated successfully!", "info");
-		await fetchParticipants().then(renderTabs); // Optionally refresh tabs after validation
+		await fetchParticipants().then(renderTabs);
 	} catch (error) {
 		showMessage(`Error: ${error.message}`, "error");
 	}
 };
 
-window.undoWinner = async function (id) {
+window.undoWinnerWithRemarks = async function (id) {
+	const remarks = document.getElementById("undoRemarks")?.value || "";
 	closeModal();
 	showMessage("Undoing winner...", "info", 8000);
 	try {
 		const response = await fetch(`${API_BASE_URL}/undo-winner`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ id }),
+			body: JSON.stringify({ id, remarks }),
 		});
 		const result = await response.json();
 		if (!response.ok) {
-			throw new Error(result.messages?.error || "Failed to reject winner");
+			throw new Error(result.messages?.error || "Failed to undo winner");
 		}
 		showMessage(
 			result.messages?.success || "Winner reverted successfully!",
 			"info",
 			8000
 		);
-		// showMessage("Winner validated successfully!", "info");
-		await fetchParticipants().then(renderTabs); // Optionally refresh tabs after validation
+		await fetchParticipants().then(renderTabs);
 	} catch (error) {
 		showMessage(`Error: ${error.message}`, "error");
 	}

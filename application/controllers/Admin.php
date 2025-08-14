@@ -11061,6 +11061,7 @@ class Admin extends CI_Controller {
 		if ($_SERVER['REQUEST_METHOD'] == 'GET') {
 			$select = "a.survey_ref_id,
 			a.survey_winner_id,
+			a.reason,
 			b.name,
 			b.email,
 			b.contact_number,
@@ -11103,6 +11104,7 @@ class Admin extends CI_Controller {
 					'winner_created_at' => date('M d, Y h:i A', strtotime($row->winner_created_at)),
 					'drawn_by' => $row->created_by,
 					'rejected_at' => date('M d, Y h:i A', strtotime($row->winner_modified_at)),
+					'reason_for_rejection' => $row->reason,
 					'rejected_by' => $row->modified_by,
 				];
 			}
@@ -11124,7 +11126,7 @@ class Admin extends CI_Controller {
 			$raw = file_get_contents("php://input");
 			$data = json_decode($raw, true);
 
-			$survey_winner_id = isset($data['id']) ? clean_data($data['id']) : null;
+			$survey_winner_id = isset($data['id']) ? trim(clean_data($data['id'])) : null;
 			if(!empty($survey_winner_id)){
 				$survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id, created_at');
 				$survey_ref_id = !empty($survey_ref) ? $survey_ref->survey_ref_id : null;
@@ -11185,7 +11187,8 @@ class Admin extends CI_Controller {
 			$raw = file_get_contents("php://input");
 			$data = json_decode($raw, true);
 
-			$survey_winner_id = isset($data['id']) ? clean_data($data['id']) : null;
+			$survey_winner_id = isset($data['id']) ? trim(clean_data($data['id'])) : null;
+			$reason = isset($data['remarks']) ? trim(clean_data($data['remarks'])) : null;
 			if(!empty($survey_winner_id)){
 				$survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id, coupon_id');
 				$survey_ref_id = !empty($survey_ref) ? $survey_ref->survey_ref_id : null;
@@ -11195,6 +11198,7 @@ class Admin extends CI_Controller {
 					$set = [
 						'survey_winner_status' => 0,
 						'survey_winner_validated' => 0,
+						'reason' => strtoupper($reason),
 						'modified_at' => date('Y-m-d H:i:s'),
 						'modified_by' => decode($info['user_id'])
 					];
@@ -11260,7 +11264,8 @@ class Admin extends CI_Controller {
 			$data = json_decode($raw, true);
 			$should_be_winner = 8;
 
-			$survey_winner_id = isset($data['id']) ? clean_data($data['id']) : null;
+			$survey_winner_id = isset($data['id']) ? trim(clean_data($data['id'])) : null;
+			$remarks = isset($data['remarks']) ? trim(clean_data($data['remarks'])) : null;
 			if(!empty($survey_winner_id)){
 				$survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id, coupon_id, created_at');
 				$survey_ref_id = !empty($survey_ref) ? $survey_ref->survey_ref_id : null;
@@ -11273,6 +11278,7 @@ class Admin extends CI_Controller {
 						$set = [
 							'survey_winner_status' => 2,
 							'survey_winner_validated' => 0,
+							'reason' => strtoupper($remarks),
 							'modified_at' => date('Y-m-d H:i:s'),
 							'modified_by' => decode($info['user_id'])
 						];
