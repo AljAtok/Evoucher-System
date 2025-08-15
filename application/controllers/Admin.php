@@ -2080,6 +2080,13 @@ class Admin extends CI_Controller {
             if ($result) {
                 $this->_store_coupon_action_log(4, $coupon_id);
             }
+
+			$set    = [
+				'survey_freebie_cal_status'  => 0
+			];
+			$where  = ['coupon_id' => $coupon_id];
+			$result = $this->main->update_data('survey_freebie_calendar_tbl', $set, $where);
+			
             $this->session->set_flashdata('message', $msg);
             redirect($_SERVER['HTTP_REFERER'].'#nav-inactive');
 		}else{
@@ -5862,7 +5869,7 @@ class Admin extends CI_Controller {
 			$trans_hdr_details = '';
 
 			if($coupon_cat_id != 7){
-				$msg = 'Voucher category is not allowed in your redeem access.';
+				$msg = 'Voucher/Coupon category is not allowed in your redeem access.';
 				$response_data = array(
 					'result'  => 0,
 					'html' => $this->alert_template($msg, FALSE)
@@ -7464,6 +7471,12 @@ class Admin extends CI_Controller {
                     if ($result) {
                         $this->_store_coupon_action_log(4, $row->coupon_id);
                     }
+
+					$set    = [
+                        'survey_freebie_cal_status'  => 0
+                    ];
+                    $where  = ['coupon_id' => $row->coupon_id];
+                    $result = $this->main->update_data('survey_freebie_calendar_tbl', $set, $where);
                 }
             }
 
