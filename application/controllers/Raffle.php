@@ -790,7 +790,8 @@ class Raffle extends CI_Controller {
 			$bcs = implode(',', $bcs);
 
 			if(!$filter){
-				$filter									= 'status = 1 and form_id = '.$form_id.' and survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status IN (1, 0) and form_id= '.$form_id.') and created_at >= "'.$start_date.'" AND created_at <= "'.$end_date.'"';
+				// $filter									= 'status = 1 and form_id = '.$form_id.' and survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status IN (1, 0) and form_id= '.$form_id.') and created_at >= "'.$start_date.'" AND created_at <= "'.$end_date.'"';
+				$filter									= '(a.status = 1 and a.form_id = '.$form_id.' and a.survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status IN (1, 0) and form_id= '.$form_id.') and a.created_at >= "'.$start_date.'" AND a.created_at <= "'.$end_date.'") AND (a.status = 1 and a.form_id = '.$form_id.' and a.normalized_name not in (SELECT y.normalized_name from survey_winners_tbl x INNER JOIN survey_reference_tbl y ON x.survey_ref_id = y.survey_ref_id where x.survey_winner_status IN (1) and x.form_id= '.$form_id.') and a.created_at >= "'.$start_date.'" AND a.created_at <= "'.$end_date.'")';
 			}
 			if($select){
 				$join 									= [

@@ -1241,6 +1241,16 @@ class Redeem extends CI_Controller {
 			// $trans_hdr_details = '[ '.$check_coupon['info']->coupon_transaction_header_id.' - '.$check_coupon['info']->coupon_transaction_header_added.' ] ';
 			$trans_hdr_details = '';
 
+			if($coupon_cat_id >= 7){
+				$msg = 'Voucher/Coupon category is not allowed in your redeem access.';
+				$response_data = array(
+					'result'  => 0,
+					'html' => $this->alert_template($msg, FALSE)
+				);
+				echo json_encode($response_data);
+				exit;
+			}
+
 			//* CHECK OUTLET IFS ON RECORD AND COMPARE IT TO COUPON BC DEFINED
 			$bc = $scope_masking == '' ? $this->_get_bc($coupon_id) : $scope_masking;
 			$verify_outlet = $this->_verify_outlet($coupon_id, $outlet_ifs, $check_coupon['info']->is_nationwide, $bc);

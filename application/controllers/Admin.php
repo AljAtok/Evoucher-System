@@ -5220,6 +5220,16 @@ class Admin extends CI_Controller {
 			// $trans_hdr_details = '[ '.$check_coupon['info']->coupon_transaction_header_id.' - '.$check_coupon['info']->coupon_transaction_header_added.' ] ';
 			$trans_hdr_details = '';
 
+			if($coupon_cat_id >= 7){
+				$msg = 'Voucher/Coupon category is not allowed in your redeem access.';
+				$response_data = array(
+					'result'  => 0,
+					'html' => $this->alert_template($msg, FALSE)
+				);
+				echo json_encode($response_data);
+				exit;
+			}
+
 			//* CHECK OUTLET IFS ON RECORD AND COMPARE IT TO COUPON BC DEFINED
 			$bc = $scope_masking == '' ? $this->_get_bc($coupon_id) : $scope_masking;
 			$verify_outlet = $this->_verify_outlet($coupon_id, $outlet_ifs, $check_coupon['info']->is_nationwide, $bc);
@@ -11384,7 +11394,8 @@ class Admin extends CI_Controller {
 			$bcs = implode(',', $bcs);
 
 			if(!$filter){
-				$filter									= 'status = 1 and form_id = '.$form_id.' and survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status IN (1, 0) and form_id= '.$form_id.') and created_at >= "'.$start_date.'" AND created_at <= "'.$end_date.'"';
+				// $filter									= 'a.status = 1 and a.form_id = '.$form_id.' and a.survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status IN (1, 0) and form_id= '.$form_id.') and a.created_at >= "'.$start_date.'" AND a.created_at <= "'.$end_date.'"';
+				$filter									= '(a.status = 1 and a.form_id = '.$form_id.' and a.survey_ref_id not in (SELECT survey_ref_id from survey_winners_tbl where survey_winner_status IN (1, 0) and form_id= '.$form_id.') and a.created_at >= "'.$start_date.'" AND a.created_at <= "'.$end_date.'") AND (a.status = 1 and a.form_id = '.$form_id.' and a.normalized_name not in (SELECT y.normalized_name from survey_winners_tbl x INNER JOIN survey_reference_tbl y ON x.survey_ref_id = y.survey_ref_id where x.survey_winner_status IN (1) and x.form_id= '.$form_id.') and a.created_at >= "'.$start_date.'" AND a.created_at <= "'.$end_date.'")';
 			}
 			if($select){
 				$join 									= [
