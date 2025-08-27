@@ -100,7 +100,7 @@
 		<!-- Chart Circle -->
 		<script src="<?=base_url()?>assets/js/circles.min.js"></script>
 		
-        <script type="text/javascript" src="<?=base_url('assets/js/admin.js?v=3.9')?>"></script>
-		<script type="text/javascript" src="<?=base_url('assets/js/adv-order.js?v=1.0')?>"></script>
+        <script type="text/javascript" src="<?=base_url('assets/js/admin.js?v=4.1')?>"></script>
+		<script type="text/javascript" src="<?=base_url('assets/js/adv-order.js?v=1.1')?>"></script>
     </body>
 </html>
