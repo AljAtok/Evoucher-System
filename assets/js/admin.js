@@ -1,4 +1,45 @@
 $(document).ready(function () {
+	// Ensure DataTables responsive recalculation on tab show
+
+	$(document).on("contextmenu", function (e) {
+		e.preventDefault();
+	});
+
+	$('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
+		var target = $(e.target).attr("href");
+		var $table = $(target).find(".data-table").first();
+
+		if ($table.length) {
+			if ($.fn.DataTable.isDataTable($table)) {
+				$table.DataTable().destroy();
+			}
+			if (!$.fn.DataTable.isDataTable($table)) {
+				load_normal_datatables($table);
+			}
+			$table.DataTable().columns.adjust().draw();
+		}
+	});
+
+	// Initialize .data-table tables NOT inside a tab
+	$(".data-table").each(function () {
+		var $table = $(this);
+		if (!$table.closest(".tab-pane").length) {
+			if ($.fn.DataTable.isDataTable($table)) {
+				$table.DataTable().destroy();
+			}
+			load_normal_datatables($table);
+		}
+	});
+	// Initialize .data-table in the active tab
+	var $tabTable = $(".tab-pane.active").find(".data-table").first();
+	if ($tabTable.length) {
+		if ($.fn.DataTable.isDataTable($tabTable)) {
+			$tabTable.DataTable().destroy();
+		}
+		load_normal_datatables($tabTable);
+		$tabTable.DataTable().columns.adjust().draw();
+	}
+
 	const baseUrl = $("#base_url").val();
 
 	let url = document.location.toString();
@@ -79,7 +120,7 @@ $(document).ready(function () {
 	formEvents();
 	initCouponElements();
 
-	load_normal_datatables(".data-table");
+	// load_normal_datatables($(".data-table"));
 
 	$(".per-page").on("change", function () {
 		window.location = $(this).val();
@@ -212,9 +253,19 @@ $(document).ready(function () {
 		});
 
 		var element_select = '[name="upd_customer_id"]';
-		if ($(element_select).data("select2")) {
-			$(element_select).select2("destroy");
-			$(element_select).select2({
+		var $el = $(element_select);
+
+		if (!$el.prop("disabled")) {
+			var select2Instance = $el.data("select2");
+			if (
+				typeof $el.select2 === "function" &&
+				$el.hasClass("select2-hidden-accessible") &&
+				select2Instance &&
+				typeof select2Instance.destroy === "function"
+			) {
+				select2Instance.destroy();
+			}
+			$el.select2({
 				theme: "bootstrap4",
 				dropdownPosition: "below",
 				dropdownParent: $("#customer-select-parent2"),
@@ -258,6 +309,7 @@ $(document).ready(function () {
 				},
 			});
 		}
+		// ...rest of your function code...
 
 		var element_select = '[name="customer_id"]';
 		if ($(element_select).data("select2")) {
@@ -307,8 +359,32 @@ $(document).ready(function () {
 			});
 		}
 
+		// $('[name="DataTables_Table_0_length"]').each(function () {
+		// 	if (
+		// 		typeof $(this).select2 === "function" &&
+		// 		$(this).hasClass("select2-hidden-accessible") &&
+		// 		$(this).data("select2") != null
+		// 	) {
+		// 		try {
+		// 			$(this).select2("destroy");
+		// 		} catch (e) {
+		// 			// Ignore error if not initialized
+		// 		}
+		// 	}
+		// 	console.log(this);
+		// });
+
 		if ($('[name="DataTables_Table_0_length"]').data("select2")) {
 			$('[name="DataTables_Table_0_length"]').select2("destroy");
+		}
+		if ($('[name="DataTables_Table_1_length"]').data("select2")) {
+			$('[name="DataTables_Table_1_length"]').select2("destroy");
+		}
+		if ($('[name="DataTables_Table_2_length"]').data("select2")) {
+			$('[name="DataTables_Table_2_length"]').select2("destroy");
+		}
+		if ($('[name="DataTables_Table_3_length"]').data("select2")) {
+			$('[name="DataTables_Table_3_length"]').select2("destroy");
 		}
 
 		$('[type="number"]').on("input", function () {
@@ -715,6 +791,20 @@ $(document).ready(function () {
 		});
 	});
 
+	$(document).on("click", ".publish-transaction", function (e) {
+		e.preventDefault();
+		let id = $(this).attr("data-id");
+		$("#publish-transaction").find("#id").val(id);
+
+		$("#modal-publish-transaction")
+			.find(".modal-title")
+			.html("<strong>Publish Transaction</strong>");
+		$("#modal-publish-transaction")
+			.find(".modal-msg")
+			.html("<strong>Are you sure to publish this Transaction?</strong>");
+		$("#modal-publish-transaction").modal({ show: true });
+	});
+
 	$(document).on("click", ".edit-approve-transaction", function (e) {
 		e.preventDefault();
 		let id = $(this).attr("data-id");
@@ -747,6 +837,14 @@ $(document).ready(function () {
 		$("#return-first-approve-transaction").find("#id").val(id);
 
 		$("#modal-return-first-approve-transaction").modal({ show: true });
+	});
+
+	$(document).on("click", ".return-approve-transaction", function (e) {
+		e.preventDefault();
+		let id = $(this).attr("data-id");
+		$("#return-approve-transaction").find("#id").val(id);
+
+		$("#modal-return-approve-transaction").modal({ show: true });
 	});
 
 	$(document).on("click", ".first-approve-transaction", function (e) {
@@ -1765,15 +1863,11 @@ $(document).ready(function () {
 		return tbl;
 	}
 
-	function load_normal_datatables(table_id, table_url = "") {
-		if (!$(table_id).length) {
-			// console.log("Table not found: " + table_id);
+	function load_normal_datatables($table, table_url = "") {
+		if (!$table.length) {
 			return;
 		}
-
-		var tbl = $(table_id).DataTable({
-			// "pagingType": "full",
-			// dom: "Bfrtip",
+		$table.DataTable({
 			language: {
 				emptyTable: "No data available",
 				lengthMenu: "Display _MENU_",
@@ -1791,36 +1885,49 @@ $(document).ready(function () {
 			serverSide: false,
 			order: [],
 			select: true,
+			// scrollX: true,
+			// autoWidth: false,
+			// fixedColumns: {
+			// 	leftColumns: 0, // This disables fixing the first column
+			// 	rightColumns: 1, // This fixes only the last column
+			// },
+			// columnDefs: [
+			// 	{
+			// 		targets: -1,
+			// 		width: "120px",
+			// 		className: "text-center",
+			// 		orderable: false,
+			// 	},
+			// ],
+			responsive: true,
+			columnDefs: [
+				{ responsivePriority: 1, targets: 0 },
+				{ responsivePriority: 2, targets: -1 },
+				{ responsivePriority: 3, targets: 1 },
+				{ responsivePriority: 4, targets: -2 },
+				{ responsivePriority: 5, targets: 2 },
+			],
 			lengthMenu: [
 				[10, 50, 100, 500, 1000, 5000, 10000],
 				[10, 50, 100, 500, 1000, 5000, 10000],
 			],
 			drawCallback: function (settings) {
-				let tableInstance = $(this)
-					.closest("table" + table_id)
-					.DataTable(); // Get nearest DataTable instance
-				let tableInfo = tableInstance.page.info(); // Get pagination info
+				let tableInstance = $table.DataTable();
+				let tableInfo = tableInstance.page.info();
 				let totalRecords = tableInfo.recordsTotal || tableInfo.recordsDisplay;
-				let selectedLength = tableInstance.page.len(); // Selected entries per page
+				let selectedLength = tableInstance.page.len();
 
-				console.log("Total Records:", totalRecords);
-				console.log("Selected Length:", selectedLength);
-
-				let lengthLabel = $(this)
+				let lengthLabel = $table
 					.closest(".dataTables_wrapper")
 					.find(".dataTables_length label");
-
 				let lengthLabelDesc =
 					selectedLength > totalRecords
 						? "<span> Entries</span>"
 						: "<span>out of " + totalRecords + " Entries</span>";
-
-				lengthLabel.find("span").remove(); // Remove previous spans
+				lengthLabel.find("span").remove();
 				lengthLabel.append(lengthLabelDesc);
 			},
 		});
-
-		return tbl;
 	}
 
 	if (baseUrl.indexOf("dashboard") !== -1) {

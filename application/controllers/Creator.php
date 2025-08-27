@@ -8,6 +8,7 @@ class Creator extends CI_Controller {
     	parent::__construct();
     	$this->load->model('main_model', 'main');
         $GLOBALS['parent_db'] = parent_db();
+		$this->controller = strtolower(str_replace('_', '-', __CLASS__));
 	}
 
 	public function index()
@@ -113,16 +114,40 @@ class Creator extends CI_Controller {
         $this->load->view('creator/templates', $data);
     }
 
-    public function product_coupon()
+    public function product_coupon($is_advance_order = NULL)
     {
         $info      = $this->_require_login();
         $parent_db = $GLOBALS['parent_db'];
+		
+		$parent_id = FALSE;
+		$order_type = 'Normal Orders';
+		if(!empty($is_advance_order)){
+			$is_advance_order = decode($is_advance_order);
+			if($is_advance_order == 1){
+				$order_type = 'Advance Orders';
+			} elseif($is_advance_order == 2){
+				$order_type = 'Issued from Advance Orders';
+				$parent_id = TRUE;
+				$is_advance_order = 0;
+			} else {
+				$is_advance_order = 0;
+			}
+		} else {
+			$is_advance_order = 0;
+		}
+
+		if($parent_id){
+			$parent_filter = 'AND a.parent_transaction_header_id IS NOT NULL';
+		} else {
+			$parent_filter = 'AND a.parent_transaction_header_id IS NULL';
+		}
 
 		$join_salable = [
-			"{$parent_db}.product_tbl b" => 'a.prod_id = b.prod_id',
+			"{$parent_db}.product_tbl b" => 'a.prod_id = b.prod_id AND a.prod_id IN (1) and a.company_id = 2',
+			// "{$parent_db}.product_tbl b" => 'a.prod_id = b.prod_id',
         ];
 
-		$coupon_trans_select = '*, total_coupon_qty as `coupon_qty`';
+		$coupon_trans_select = '*, total_coupon_qty as `coupon_qty`, IF(a.parent_transaction_header_id, (SELECT CONCAT("#",x.coupon_transaction_header_id," - ", x.coupon_transaction_header_name) FROM coupon_transaction_header_tbl x WHERE a.parent_transaction_header_id = x.coupon_transaction_header_id), "") as parent_trans';
 
         $join_coupon = array(
         	"{$parent_db}.user_tbl b" => 'a.user_id = b.user_id',
@@ -134,24 +159,63 @@ class Creator extends CI_Controller {
         $user_id        = clean_data(decode($info['user_id']));
         $category_where = "a.coupon_cat_id IN (SELECT z.coupon_cat_id FROM user_access_tbl z WHERE z.user_id = {$user_id} AND user_access_status = 1)";
 
-        $data['pending_coupon_trans']  = $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 2 AND ' . $category_where);
-        $data['approved_coupon_trans'] = $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 1 AND ' . $category_where);
-		$data['first_appr_coupon_trans'] = $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 4 AND ' . $category_where);
-        $data['inactive_coupon_trans'] = $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 0 AND ' . $category_where);
+        $data['pending_coupon_trans']  		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 2 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
+		$data['first_appr_coupon_trans'] 	= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 4 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
+		$data['approved_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 5 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
+		$data['active_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 1 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
+        $data['inactive_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 0 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
 
-        $data['products']    = $this->main->get_join("{$parent_db}.product_sale_tbl a", $join_salable);
-        $data['brand']       = $this->main->get_data("{$parent_db}.brand_tbl", ['brand_status' => 1]);
-        $data['bc']          = $this->main->get_data("{$parent_db}.bc_tbl", ['bc_status' => 1]);
-        $data['coupon_type'] = $this->main->get_data('coupon_type_tbl', ['coupon_type_status' => 1]);
-        $data['value_type']  = $this->main->get_data('coupon_value_type_tbl a', ['coupon_value_type_status' => 1]);
-        $data['category']    = $this->main->get_data('coupon_category_tbl a', 'coupon_cat_status = 1 AND ' . $category_where);
-        $data['holder_type'] = $this->main->get_data('coupon_holder_type_tbl a', ['coupon_holder_type_status' => 1]);
-		$data['scope_masking']          = $this->main->get_data("scope_masking_tbl", ['scope_masking_status' => 1]);
-		$data['customer']          	= $this->main->get_data("customers_tbl", ['customer_status' => 1]);
-        $data['title']       = 'Product '.SEC_SYS_NAME.'';
+        $data['products']    				= $this->main->get_join("{$parent_db}.product_sale_tbl a", $join_salable);
+        $data['brand']       				= $this->main->get_data("{$parent_db}.brand_tbl", ['brand_status' => 1]);
+        $data['bc']          				= $this->main->get_data("{$parent_db}.bc_tbl", ['bc_status' => 1]);
+        $data['coupon_type'] 				= $this->main->get_data('coupon_type_tbl', ['coupon_type_status' => 1]);
+        $data['value_type']  				= $this->main->get_data('coupon_value_type_tbl a', ['coupon_value_type_status' => 1]);
+        $data['category']    				= $this->main->get_data('coupon_category_tbl a', 'coupon_cat_status = 1 AND ' . $category_where);
+		$data['category_menu']    			= [];
+		$data['filter_category'] 			= FALSE;
+        $data['holder_type'] 				= $this->main->get_data('coupon_holder_type_tbl a', ['coupon_holder_type_status' => 1]);
+		$data['scope_masking']          	= $this->main->get_data("scope_masking_tbl", ['scope_masking_status' => 1]);
+		$data['customer']          			= $this->main->get_data("customers_tbl", ['customer_status' => 1]);
+        $data['title']       				= 'Product '.SEC_SYS_NAME.'';
+		$data['is_advance_order'] 			= $is_advance_order;
+		$data['parent_id'] 					= $parent_id;
+		$data['order_type'] 				= $order_type;
+		$qry = "SELECT 
+					coupon_qty, 
+					coupon_transaction_header_id, 
+					coupon_transaction_header_name, 
+					coupon_scope
+				FROM (
+					SELECT 
+						COUNT(b.coupon_transaction_details_id) AS coupon_qty,
+						a.coupon_transaction_header_id,
+						a.coupon_transaction_header_name,
+						IF(
+							c.is_nationwide = 1, 
+							'Nationwide', 
+							(
+								SELECT GROUP_CONCAT(DISTINCT y.bc_name SEPARATOR ', ')
+								FROM coupon_bc_tbl x
+								INNER JOIN chooks_delivery_db.bc_tbl y ON x.bc_id = y.bc_id AND y.bc_name <> 'CDI'
+								WHERE x.coupon_id = c.coupon_id
+							)
+						) AS coupon_scope
+					FROM coupon_transaction_header_tbl a
+					INNER JOIN coupon_transaction_details_tbl b ON a.coupon_transaction_header_id = b.coupon_transaction_header_id
+					INNER JOIN coupon_tbl c ON b.coupon_id = c.coupon_id
+					WHERE a.coupon_transaction_header_status = 1
+					AND a.is_advance_order = 1
+					GROUP BY a.coupon_transaction_header_id
+				) AS sub
+				WHERE coupon_qty > 0";
+		$data['advance_orders']          	= $this->main->get_query($qry);
 
-		$data['top_nav']     = $this->load->view('fix/top_nav_content', $data, TRUE);
-        $data['content']     = $this->load->view('creator/coupon/product_coupon_content', $data, TRUE);
+		$data['top_nav']     				= $this->load->view('fix/top_nav_content', $data, TRUE);
+		$data['controller']					= $this->controller;
+		$data['access_type']				= str_replace('-', '_', $this->controller);
+		
+		$dynamic_content 					= 'coupon/product_coupon_content';
+        $data['content']     				= $this->load->view($dynamic_content, $data, TRUE);
         $this->load->view('creator/templates', $data);
     }
 
@@ -403,11 +467,12 @@ class Creator extends CI_Controller {
 
     }
 
-    private function _store_coupon_trans_header($coupon_name, $category, $start, $end, $payment_status, $invoice_number, $product_coupon_qty=0, $voucher_value=0, $for_printing=0, $scope_masking="", $display_exp=0, $for_image_conv=0, $payment_terms=0, $payment_type_id=1, $customer_id=0)
+    private function _store_coupon_trans_header($coupon_name, $category, $start, $end, $payment_status, $invoice_number, $product_coupon_qty=0, $voucher_value=0, $for_printing=0, $scope_masking="", $display_exp=0, $for_image_conv=0, $payment_terms=0, $payment_type_id=1, $customer_id=0, $order_type="", $parent_transaction_header_id=NULL)
     {
     	$info    = $this->_require_login();
     	$user_id = decode($info['user_id']);
 		$total_coupon_value = $product_coupon_qty * $voucher_value;
+		$is_advance_order = strtoupper(trim($order_type)) == 'ADVANCE' ? 1 : 0;
         $data = [
         	'coupon_cat_id'                    			=> $category,
         	'user_id'                          			=> $user_id,
@@ -415,6 +480,7 @@ class Creator extends CI_Controller {
         	'payment_status'                   			=> $payment_status,
 			'total_coupon_value'               			=> $total_coupon_value,
         	'total_coupon_qty'               			=> $product_coupon_qty,
+			'orig_total_coupon_qty'               		=> $product_coupon_qty,
         	'coupon_transaction_header_name'   			=> strtoupper(trim($coupon_name)),
 			'coupon_for_printing'  						=> $for_printing,
 			'coupon_for_image_conv'  					=> $for_image_conv,
@@ -425,6 +491,8 @@ class Creator extends CI_Controller {
 			'payment_type_id'    						=> $payment_type_id,
         	'payment_terms'    							=> $payment_terms,
         	'customer_id'    							=> $customer_id,
+			'is_advance_order'    						=> $is_advance_order,
+        	'parent_transaction_header_id'				=> $parent_transaction_header_id,
         	'coupon_transaction_header_added'  			=> date_now(),
         	'coupon_pdf_archived'  						=> 0,
         	'coupon_transaction_header_status' 			=> 2
@@ -433,16 +501,146 @@ class Creator extends CI_Controller {
     }
 
 
-    private function _store_coupon_trans_details($header_id, $coupon_id)
+    private function _store_coupon_trans_details($header_id, $coupon_id, $order_type, $series_start)
     {
+		$coupon_qty = 1;
+		$series = [];
+		if($order_type == 'advance'){
+			if($series_start > 0){
+				$series = $this->_series_generator($header_id, $series_start, $coupon_qty);
+			}
+		}
         $data = [
             'coupon_transaction_header_id'      => $header_id,
             'coupon_id'                         => $coupon_id,
             'coupon_transaction_details_added'  => date_now(),
-            'coupon_transaction_details_status' => 1
+            'coupon_transaction_details_status' => 1,
+			'coupon_transaction_details_status' => 1,
+			'series_number'						=> !empty($series) ? $series[0] : NULL,
         ];
         $result = $this->main->insert_data('coupon_transaction_details_tbl', $data, TRUE);
     }
+
+	private function _update_coupon_trans_details($params){
+		$update_coupon = FALSE;
+		$trans_details 				= $this->main->get_data('coupon_transaction_details_tbl a', ['coupon_transaction_header_id' => $params['header_id']], FALSE, FALSE, 'coupon_transaction_details_id', $params['coupon_qty']);
+		$trans_header 				= $this->main->get_data('coupon_transaction_header_tbl a', ['coupon_transaction_header_id' => $params['header_id']], TRUE, FALSE, 'coupon_transaction_header_id');
+		if(!empty($trans_details) && !empty($trans_header)){
+			$issued = $trans_header->orig_total_coupon_qty - $trans_header->total_coupon_qty;
+			$series_start = $issued + 1;
+
+			$new_coupon_qty = $trans_header->total_coupon_qty - $params['coupon_qty'];
+			$set      = [ 'total_coupon_qty' => $new_coupon_qty ];
+			$where    = [ 'coupon_transaction_header_id' => $params['header_id'] ];
+			$update_header = $this->main->update_data('coupon_transaction_header_tbl', $set, $where);
+
+			$i = 0;
+			if($update_header){
+				foreach($trans_details as $row){
+					
+					$set      = [
+						'coupon_transaction_header_id' 			=> $params['new_header_id']
+					];
+					$where    = [ 'coupon_transaction_details_id' => $row->coupon_transaction_details_id ];
+					$update_details = $this->main->update_data('coupon_transaction_details_tbl', $set, $where);
+	
+					if($update_details){
+						$set      = [
+							'coupon_name'          				=> $params['coupon_name'],
+							'coupon_value'          			=> $params['coupon_value'],
+							'coupon_regular_value'  			=> $params['coupon_regular_value'],
+							'coupon_start'          			=> $params['coupon_start'],
+							'coupon_end'            			=> $params['coupon_end'],
+							'coupon_holder_name'    			=> $params['coupon_holder_name'],
+							'coupon_holder_type_id' 			=> $params['coupon_holder_type_id'],
+							'coupon_holder_email'   			=> $params['coupon_holder_email'],
+							'coupon_holder_contact' 			=> $params['coupon_holder_contact'],
+							'coupon_holder_address' 			=> $params['coupon_holder_address'],
+							'coupon_holder_tin'     			=> $params['coupon_holder_tin'],
+							'payment_status'        			=> $params['payment_status'],
+							'company_id'        				=> $params['company_id'],
+							'customer_id'        				=> $params['customer_id']
+						];
+						$where    = [ 'coupon_id' => $row->coupon_id ];
+						$update_coupon = $this->main->update_data('coupon_tbl', $set, $where);
+						$i++;
+					}
+				}
+			}
+		}
+
+		return $update_coupon;
+	}
+
+	private function _update_coupon_back_to_parent_details($params){
+		$update_coupon = FALSE;
+		$trans_details 				= $this->main->get_data('coupon_transaction_details_tbl a', ['coupon_transaction_header_id' => $params['header_id']], FALSE, FALSE, 'coupon_transaction_details_id');
+		$parent_trans_header 		= $this->main->get_data('coupon_transaction_header_tbl a', ['coupon_transaction_header_id' => $params['parent_header_id']], TRUE, FALSE, 'coupon_transaction_header_id');
+		if(!empty($parent_trans_header) && !empty($trans_details)){
+			$issued = count($trans_details);
+
+			$new_coupon_qty 		= $parent_trans_header->total_coupon_qty + $issued;
+			$set      				= [ 'total_coupon_qty' => $new_coupon_qty ];
+			$where    				= [ 'coupon_transaction_header_id' => $params['parent_header_id'] ];
+			$update_header 			= $this->main->update_data('coupon_transaction_header_tbl', $set, $where);
+
+			$coupon_name = $parent_trans_header->coupon_transaction_header_name;
+			$coupon_start = $parent_trans_header->coupon_transaction_header_start;
+			$coupon_end = $parent_trans_header->coupon_transaction_header_end;
+			$customer_id = $parent_trans_header->customer_id;
+
+			$i = 0;
+			if($update_header){
+				foreach($trans_details as $row){
+					
+					$set      = [
+						'coupon_transaction_header_id' 			=> $params['parent_header_id']
+					];
+					$where    = [ 'coupon_transaction_details_id' => $row->coupon_transaction_details_id ];
+					$update_details = $this->main->update_data('coupon_transaction_details_tbl', $set, $where);
+	
+					if($update_details){
+						$set      = [
+							'coupon_name'          				=> $coupon_name,
+							'coupon_value'          			=> 0,
+							'coupon_regular_value'  			=> 0,
+							'coupon_start'          			=> $coupon_start,
+							'coupon_end'            			=> $coupon_end,
+							'coupon_holder_name'    			=> '',
+							'coupon_holder_type_id' 			=> 5,
+							'coupon_holder_email'   			=> '',
+							'coupon_holder_contact' 			=> '',
+							'coupon_holder_address' 			=> '',
+							'coupon_holder_tin'     			=> '',
+							'payment_status'        			=> 0,
+							'company_id'        				=> 8,
+							'customer_id'        				=> $customer_id
+						];
+						$where    = [ 'coupon_id' => $row->coupon_id ];
+						$update_coupon = $this->main->update_data('coupon_tbl', $set, $where);
+						$i++;
+					}
+				}
+			}
+		}
+
+		return $update_coupon;
+	}
+
+	public function test_series_generator()
+	{
+		$result = $this->_series_generator('1534', 1, 100);
+		pretty_dump($result);
+	}
+
+	private function _series_generator($id, $start, $count){
+		$series = [];
+		for ($i = 0; $i < $count; $i++) {
+			$number = str_pad($start + $i, 5, '0', STR_PAD_LEFT);
+			$series[] = "{$id}-{$number}";
+		}
+		return $series;
+	}
 
 
     public function store_product_coupon()
@@ -455,28 +653,61 @@ class Creator extends CI_Controller {
             redirect($_SERVER['HTTP_REFERER']);
         }
 
-        $rules = [
-            [ 'field' => 'bc[]'          		, 'label' => 'Business Center'     		,'rules' => 'required'                ],
-            [ 'field' => 'brand[]'       		, 'label' => 'Brand'               		,'rules' => 'required'                ],
-            [ 'field' => 'product[]'     		, 'label' => 'Product'             		,'rules' => 'required'                ],
-            [ 'field' => 'name'          		, 'label' => ''.SEC_SYS_NAME.' Name'         		,'rules' => 'required|max_length[70]' ],
-            [ 'field' => 'amount'        		, 'label' => ''.SEC_SYS_NAME.' amount'       		,'rules' => 'required|integer'        ],
-            [ 'field' => 'voucher-value' 		, 'label' => SEC_SYS_NAME.' amount'    		,'rules' => 'integer'                 ],
-            [ 'field' => 'date_range'    		, 'label' => ''.SEC_SYS_NAME.' Start & End' 		,'rules' => 'required'                ],
-            [ 'field' => 'category'      		, 'label' => ''.SEC_SYS_NAME.' Category'     		,'rules' => 'required'                ],
-            [ 'field' => 'value_type'    		, 'label' => 'Value Type'          		,'rules' => 'required'                ],
-            [ 'field' => 'holder_type'   		, 'label' => 'Holder Type'         		,'rules' => 'required'                ],
-			[ 'field' => 'total-voucher-value' 	, 'label' => SEC_SYS_NAME.' total amount'   ,'rules' => 'integer'                 ],
-			[ 'field' => 'voucher-regular-value' 		, 'label' => SEC_SYS_NAME.' regular amount'    		,'rules' => 'integer'                 ],
-			[ 'field' => 'company_id'       	, 'label' => 'Requestor\'s Company'               		,'rules' => 'required'                ],
-			[ 'field' => 'customer_id'       	, 'label' => 'Customer'               		,'rules' => 'required'                ],
-        ];
+        $order_type    	= decode(clean_data($this->input->post('order_type')));
+		$order_type		= trim($order_type);
+		$holder_type = decode(clean_data($this->input->post('holder_type')));
+		$company_id  = decode(clean_data($this->input->post('company_id')));
+		$parent_transaction_header_id  = NULL;
+		if($order_type == 'normal') {
+			$rules = [
+				[ 'field' => 'bc[]'          		, 'label' => 'Business Center'     			,'rules' => 'required'                ],
+				[ 'field' => 'brand[]'       		, 'label' => 'Brand'               			,'rules' => 'required'                ],
+				[ 'field' => 'product[]'     		, 'label' => 'Product'             			,'rules' => 'required'                ],
+				[ 'field' => 'name'          		, 'label' => ''.SEC_SYS_NAME.' Name'        ,'rules' => 'required|max_length[70]' ],
+				[ 'field' => 'amount'        		, 'label' => ''.SEC_SYS_NAME.' amount'      ,'rules' => 'required|integer'        ],
+				[ 'field' => 'voucher-value' 		, 'label' => SEC_SYS_NAME.' paid amount'    ,'rules' => 'integer'                 ],
+				[ 'field' => 'date_range'    		, 'label' => SEC_SYS_NAME.' Start & End' 	,'rules' => 'required'                ],
+				[ 'field' => 'category'      		, 'label' => ''.SEC_SYS_NAME.' Category'    ,'rules' => 'required'                ],
+				[ 'field' => 'value_type'    		, 'label' => 'Value Type'          			,'rules' => 'required'                ],
+				[ 'field' => 'holder_type'   		, 'label' => 'Holder Type'         			,'rules' => 'required'                ],
+				[ 'field' => 'total-voucher-value' 	, 'label' => SEC_SYS_NAME.' total amount'   ,'rules' => 'integer'                 ],
+				[ 'field' => 'voucher-regular-value', 'label' => SEC_SYS_NAME.' regular amount'	,'rules' => 'integer'                 ],
+				[ 'field' => 'company_id'       	, 'label' => 'Requestor\'s Company'         ,'rules' => 'required'                ],
+				[ 'field' => 'customer_id'       	, 'label' => 'Customer'               		,'rules' => 'required'                ],
+				[ 'field' => 'product_coupon_qty'   , 'label' => 'Product Coupon Quantity'      ,'rules' => 'required'                ],
+			];
+			
+		} elseif($order_type == 'advance') {
+			$rules = [
+				[ 'field' => 'bc[]'          		, 'label' => 'Business Center'     			,'rules' => 'required'                ],
+				[ 'field' => 'brand[]'       		, 'label' => 'Brand'               			,'rules' => 'required'                ],
+				[ 'field' => 'product[]'     		, 'label' => 'Product'             			,'rules' => 'required'                ],
+				[ 'field' => 'name'          		, 'label' => ''.SEC_SYS_NAME.' Name'        ,'rules' => 'required|max_length[70]' ],
+				[ 'field' => 'amount'        		, 'label' => ''.SEC_SYS_NAME.' amount'      ,'rules' => 'required|integer'        ],
+				[ 'field' => 'category'      		, 'label' => ''.SEC_SYS_NAME.' Category'    ,'rules' => 'required'                ],
+				[ 'field' => 'value_type'    		, 'label' => 'Value Type'          			,'rules' => 'required'                ],
+			];
+			$holder_type = 5; //* NONE
+			$company_id  = 8; //* NONE
+		}elseif($order_type == 'issue_on_advance') {
+			$rules = [
+				[ 'field' => 'parent_transaction_header_id'	, 'label' => 'From Advance Order Transaction'   ,'rules' => 'required' ],
+				[ 'field' => 'name'          				, 'label' => ''.SEC_SYS_NAME.' Name'        	,'rules' => 'required|max_length[70]' ],
+				[ 'field' => 'customer_id'       			, 'label' => 'Customer'               			,'rules' => 'required'                ],
+				[ 'field' => 'product_coupon_qty'   		, 'label' => 'Product Coupon Quantity'      	,'rules' => 'required'                ],
+				[ 'field' => 'category'      				, 'label' => ''.SEC_SYS_NAME.' Category'    	,'rules' => 'required'                ],
+				[ 'field' => 'holder_type'   				, 'label' => 'Holder Type'         				,'rules' => 'required'                ],
+				[ 'field' => 'date_range'    				, 'label' => SEC_SYS_NAME.' Start & End' 		,'rules' => 'required'                ],
+				[ 'field' => 'company_id'       			, 'label' => 'Requestor\'s Company'         	,'rules' => 'required'                ],
+				[ 'field' => 'total-voucher-value' 			, 'label' => SEC_SYS_NAME.' total amount'   	,'rules' => 'integer'                 ],
+				[ 'field' => 'voucher-regular-value'		, 'label' => SEC_SYS_NAME.' regular amount'		,'rules' => 'integer'                 ],
+			];
+			$parent_transaction_header_id  = decode(clean_data($this->input->post('parent_transaction_header_id')));
+		}
 
         $this->_run_form_validation($rules);
 
         $category    = decode(clean_data($this->input->post('category')));
-        $holder_type = decode(clean_data($this->input->post('holder_type')));
-		$company_id  = decode(clean_data($this->input->post('company_id')));
 
 		if(in_array($category, gift_and_paid_category())){
 			$this->_validate_attachment();
@@ -497,14 +728,16 @@ class Creator extends CI_Controller {
 
         $additional_rules = [];
 		if(in_array($category, paid_category())){
-            $rules = [
-                [ 'field' => 'address'      		, 'label' => 'Holder Address'    , 'rules' => 'required'],
-				[ 'field' => 'voucher-regular-value'		, 'label' => ''.SEC_SYS_NAME.' Regular Value', 'rules' => 'required'],
-                [ 'field' => 'voucher-value'		, 'label' => ''.SEC_SYS_NAME.' Paid Value', 'rules' => 'required'],
-                [ 'field' => 'tin'          		, 'label' => 'Holder TIN'        , 'rules' => 'required'],
-                [ 'field' => 'total-voucher-value'	, 'label' => ''.SEC_SYS_NAME.' Paid Value', 'rules' => 'required'],
-            ];
-            array_push($additional_rules, $rules);
+			if($order_type != 'advance') {
+				$rules = [
+					[ 'field' => 'address'      		, 'label' => 'Holder Address'    , 'rules' => 'required'],
+					[ 'field' => 'voucher-regular-value'		, 'label' => ''.SEC_SYS_NAME.' Regular Value', 'rules' => 'required'],
+					[ 'field' => 'voucher-value'		, 'label' => ''.SEC_SYS_NAME.' Paid Value', 'rules' => 'required'],
+					[ 'field' => 'tin'          		, 'label' => 'Holder TIN'        , 'rules' => 'required'],
+					[ 'field' => 'total-voucher-value'	, 'label' => ''.SEC_SYS_NAME.' Paid Value', 'rules' => 'required'],
+				];
+				array_push($additional_rules, $rules);
+			}
         }
 
         if ($this->input->post('holder_email') != '') {
@@ -526,13 +759,13 @@ class Creator extends CI_Controller {
         $scope_masking      = clean_data($this->input->post('scope_masking'));
 		$display_exp      	= clean_data($this->input->post('display_exp'));
 		$amount             = clean_data($this->input->post('amount'));
-        $dates              = explode(' - ', clean_data($this->input->post('date_range')));
-        $start              = date('Y-m-d', strtotime($dates[0]));
-        $end                = date('Y-m-d', strtotime($dates[1]));
+        $dates              = $this->input->post('date_range') ? explode(' - ', clean_data($this->input->post('date_range'))) : [];
+        $start              = !empty($dates) && $dates[0] ? date('Y-m-d', strtotime($dates[0])) : date('Y-m-d', strtotime('-1 day'));
+        $end                = !empty($dates) && $dates[1] ? date('Y-m-d', strtotime($dates[1])) : date('Y-m-d', strtotime('-1 day'));
         $value_type         = decode(clean_data($this->input->post('value_type')));
-        $holder_name        = clean_data($this->input->post('holder_name'));
-        $holder_email       = clean_data($this->input->post('holder_email'));
-        $holder_contact     = clean_data($this->input->post('holder_contact'));
+        $holder_name        = $this->input->post('holder_name') ? clean_data($this->input->post('holder_name')) : '';
+        $holder_email       = $this->input->post('holder_email') ? clean_data($this->input->post('holder_email')) : '';
+        $holder_contact     = $this->input->post('holder_contact') ? clean_data($this->input->post('holder_contact')) : '';
         $voucher_value      = ($this->input->post('voucher-value') != NULL)? clean_data($this->input->post('voucher-value')) : 0;
         $holder_address     = ($this->input->post('address') != NULL) ? clean_data($this->input->post('address')) : '';
         $holder_tin         = ($this->input->post('tin') != NULL) ? clean_data($this->input->post('tin')) : '';
@@ -540,7 +773,7 @@ class Creator extends CI_Controller {
         $payment_type_id    = ($this->input->post('payment_type_id') != NULL) ? clean_data(decode($this->input->post('payment_type_id'))) : 1;
 		$customer_id    	= ($this->input->post('customer_id') != NULL) ? clean_data(decode($this->input->post('customer_id'))) : NULL;
         // $payment_status     = ($holder_type == 4) ? 0 : 1;
-		$payment_status     = ($payment_type_id == 4) ? 0 : 1;  //* UNPAID WHEN CREDIT PAYMENT TYPE
+		
         $invoice_number     = ($holder_type == 4) ? clean_data($this->input->post('invoice_num')) : '';
 		$voucher_regular_value      = ($this->input->post('voucher-regular-value') != NULL)? clean_data($this->input->post('voucher-regular-value')) : 0;
 
@@ -558,23 +791,41 @@ class Creator extends CI_Controller {
 			redirect($_SERVER['HTTP_REFERER']);
 		}
 
-		$customer_name = "";
-		if(!is_numeric($customer_id)){
-			$customer_name = clean_data(trim($this->input->post('customer_id')));
+		if($order_type == 'normal'){
+			$customer_name = "";
+			if(!is_numeric($customer_id)){
+				$customer_name = clean_data(trim($this->input->post('customer_id')));
+			}
+			$this->_validate_prod_sale($prod_sale);
+			$this->_validate_brand($brand);
+			$this->_validate_bc($bc);
+			$this->_validate_category($category);
+			$this->_validate_value_type($value_type);
+			$this->_validate_holder_type($holder_type);
+			$this->_validate_company($company_id);
+			$this->_validate_payment_type($payment_type_id);
+		}elseif($order_type == 'advance'){
+			$customer_name = "ADVANCE ORDERS";
+			$this->_validate_prod_sale($prod_sale);
+			$this->_validate_brand($brand);
+			$this->_validate_bc($bc);
+			$this->_validate_category($category);
+			$this->_validate_value_type($value_type);
+			$payment_type_id = 7; //* ADVANCE ORDER
+		}elseif($order_type == 'issue_on_advance'){
+			$customer_name = "";
+			if(!is_numeric($customer_id)){
+				$customer_name = clean_data(trim($this->input->post('customer_id')));
+			}
+			$this->_validate_holder_type($holder_type);
+			$this->_validate_company($company_id);
+			$this->_validate_payment_type($payment_type_id);
 		}
 		$customer_id = $this->_validate_customer($customer_id, $customer_name);
-
-        $this->_validate_prod_sale($prod_sale);
-        $this->_validate_brand($brand);
-        $this->_validate_bc($bc);
-        $this->_validate_category($category);
-        $this->_validate_value_type($value_type);
-        $this->_validate_holder_type($holder_type);
-        $this->_validate_company($company_id);
-        $this->_validate_payment_type($payment_type_id);
+		$payment_status     = ($payment_type_id == 4 || $payment_type_id == 7) ? 0 : 1; //* UNPAID WHEN CREDIT & ADVANCE ORDER PAYMENT TYPE
 
         $this->db->trans_start();
-        $trans_result = $this->_store_coupon_trans_header($name, $category, $start, $end, $payment_status, $invoice_number, $product_coupon_qty, $voucher_value, $for_printing, $scope_masking, $display_exp, $for_image_conv, $payment_terms, $payment_type_id, $customer_id);
+        $trans_result = $this->_store_coupon_trans_header($name, $category, $start, $end, $payment_status, $invoice_number, $product_coupon_qty, $voucher_value, $for_printing, $scope_masking, $display_exp, $for_image_conv, $payment_terms, $payment_type_id, $customer_id, $order_type, $parent_transaction_header_id);
         if ($trans_result) {
             $this->_store_transaction_action_log(1, $trans_result['id']);
             if (isset($_FILES['attachment']) && $_FILES['attachment']['name'][0] != '') {
@@ -582,143 +833,226 @@ class Creator extends CI_Controller {
             }
         }
 
-        $is_nationwide = (in_array('nationwide', $bc)) ? 1 : 0;
-        $is_orc        = '';
-        if (in_array('all', $prod_sale)) {
-            $is_orc = 2;
-        } else if (in_array('orc', $prod_sale)) {
-            $is_orc = 1;
-        } else {
-            $is_orc = 0;
-        }
+		if($order_type == 'issue_on_advance'){
+			//* UPDATE TRANS DETAILS ROUTINE
+			$params = [
+				'header_id'          				=> $parent_transaction_header_id,
+				'new_header_id'          			=> $trans_result['id'],
+				'coupon_name'          				=> $name,
+				'coupon_qty'          				=> $product_coupon_qty,
+				'coupon_start'          			=> $start,
+				'coupon_end'            			=> $end,
+				'coupon_value'          			=> $voucher_value,
+				'coupon_regular_value'  			=> $voucher_regular_value,
+				'coupon_holder_name'    			=> $holder_name,
+				'coupon_holder_type_id' 			=> $holder_type,
+				'coupon_holder_email'   			=> $holder_email,
+				'coupon_holder_contact' 			=> $holder_contact,
+				'coupon_holder_address' 			=> $holder_address,
+				'coupon_holder_tin'     			=> $holder_tin,
+				'payment_status'        			=> $payment_status,
+				'company_id'        				=> $company_id,
+				'customer_id'        				=> $customer_id,
+			];
+			$update_trans_details = $this->_update_coupon_trans_details($params);
+		} else {
+        	$is_nationwide = (in_array('nationwide', $bc)) ? 1 : 0;
+			$is_orc        = '';
+			if (in_array('all', $prod_sale)) {
+				$is_orc = 2;
+			} else if (in_array('orc', $prod_sale)) {
+				$is_orc = 1;
+			} else {
+				$is_orc = 0;
+			}
+	
+			$name           = strtoupper(trim($name));
+			$holder_name    = strtoupper(trim($holder_name));
+			$holder_address = strtoupper(trim($holder_address));
+	
+			$coupon_sequence = 0;
+			for ($i = 1; $i <= $product_coupon_qty; $i++) {
+				$code_length = $category == 6 || $category == 7 ? 8 : 7;
+				$code = $this->_get_coupon($code_length);
+				$data = [
+					'coupon_name'           			=> $name,
+					'coupon_code'           			=> $code,
+					'coupon_amount'         			=> $amount,
+					'coupon_value'          			=> $voucher_value,
+					'coupon_regular_value'  			=> $voucher_regular_value,
+					'coupon_qty'            			=> 1,
+					'coupon_use'            			=> 0,
+					'coupon_value_type_id'  			=> $value_type,
+					'coupon_type_id'        			=> 2,
+					'coupon_cat_id'         			=> $category,
+					'user_id'               			=> $user_id,
+					'coupon_start'          			=> $start,
+					'coupon_end'            			=> $end,
+					'coupon_holder_name'    			=> $holder_name,
+					'coupon_holder_type_id' 			=> $holder_type,
+					'coupon_holder_email'   			=> $holder_email,
+					'coupon_holder_contact' 			=> $holder_contact,
+					'coupon_holder_address' 			=> $holder_address,
+					'coupon_holder_tin'     			=> $holder_tin,
+					'coupon_added'          			=> date_now(),
+					'coupon_status'         			=> 2,
+					'is_nationwide'         			=> $is_nationwide,
+					'is_orc'                			=> $is_orc,
+					'invoice_number'        			=> $invoice_number,
+					'payment_status'        			=> $payment_status,
+					'company_id'        				=> $company_id,
+					'customer_id'        				=> $customer_id,
+				];
+	
+	
+				$coupon_result = $this->main->insert_data('coupon_tbl', $data, TRUE);
+				
+				if ($coupon_result['result']) {
+	
+					$this->_store_coupon_action_log(1, $coupon_result['id']);
+	
+					foreach ($brand as $brand_row) {
+						$clean_brand_row = decode(clean_data($brand_row));
+						$coupon_brand_data  = [
+							'brand_id'            => $clean_brand_row,
+							'coupon_id'           => $coupon_result['id'],
+							'coupon_brand_status' => 1
+						];
+						$this->main->insert_data('coupon_brand_tbl', $coupon_brand_data);
+						
+						if($category == 6){ //FOR QR PROMO
+							$form_id = $clean_brand_row == 1 ? 3 : 4;
+							$freebie_data  = [
+								'brand_id'            			=> $clean_brand_row,
+								'form_id'            			=> $form_id,
+								'coupon_id'           			=> $coupon_result['id'],
+								'freebie_date'					=> $start,
+								'survey_freebie_cal_status' 	=> 0
+							];
+							$this->main->insert_data('survey_freebie_calendar_tbl', $freebie_data);
+						}
+						
+						if($category == 7){ //FOR CHOOKSIE QR PROMO
+							$form_id = 5;
+							$freebie_data  = [
+								'brand_id'            			=> $clean_brand_row,
+								'form_id'            			=> $form_id,
+								'coupon_id'           			=> $coupon_result['id'],
+								'freebie_date'					=> $start,
+								'survey_freebie_cal_status' 	=> 0
+							];
+							$this->main->insert_data('survey_freebie_calendar_tbl', $freebie_data);
+						}
+					}
+					
+					$allocate_to_each_bc = clean_data($this->input->post('allocate_to_each_bc'));
+					$allocation_count = clean_data($this->input->post('allocation_count'));
+					$allocation_count = !empty($allocation_count) ? $allocation_count * 1 : 0;
+					if($allocate_to_each_bc && $allocation_count){
+						//* PER BC ALLOCATION BASE ON ALLOCATION COUPON COUNT, SUITED FOR QR PROMO VOUCHERS
+						$encoded_bc = TRUE;
+						if (in_array('nationwide', $bc)) {
+							$bc_list = $this->main->get_data("{$parent_db}.bc_tbl", ['bc_status' => 1]);
+							$bc = array_column($bc_list, 'bc_id');
+							$encoded_bc = FALSE;	
+						}
+	
+						if( ($i - 1) % $allocation_count === 0 ){
+							$bc_val = isset($bc[$coupon_sequence]) ? $bc[$coupon_sequence] : $bc[0];
+							if($encoded_bc) $bc_val = isset($bc[$coupon_sequence]) ? decode(clean_data($bc[$coupon_sequence])) : decode(clean_data($bc[0]));
+							$coupon_sequence++;
+						} else {
+							$bc_val = isset($bc[$coupon_sequence - 1]) ? $bc[$coupon_sequence - 1] : $bc[0];
+							if($encoded_bc) $bc_val = isset($bc[$coupon_sequence - 1]) ? decode(clean_data($bc[$coupon_sequence - 1])) : decode(clean_data($bc[0]));
+						}
+						//* GET THE BC BASE ON QTY ALLOCATED
+						$coupon_bc_data = [
+							'bc_id'            					=> $bc_val,
+							'coupon_id'        					=> $coupon_result['id'],
+							'coupon_bc_status' 					=> 1
+						];
+						// $coupon_bc_data['bc_id'] 			= $bc_val;
+						// $coupon_bc_data['coupon_id'] 			= $coupon_result['id'];
+						// $coupon_bc_data['coupon_bc_status'] 	= 1;
+						$this->main->insert_data('coupon_bc_tbl', $coupon_bc_data);
+					} else {
+						//* PER BC SHARED ON COUPON
+						if (in_array('nationwide', $bc)) {
+							$bc_list = $this->main->get_data("{$parent_db}.bc_tbl", ['bc_status' => 1]);
+							foreach ($bc_list as $bc_row) {
+								$coupon_bc_data = [
+									'bc_id'            => $bc_row->bc_id,
+									'coupon_id'        => $coupon_result['id'],
+									'coupon_bc_status' => 1
+								];
+								$this->main->insert_data('coupon_bc_tbl', $coupon_bc_data);
+							}
+						} else {
+							foreach ($bc as $bc_row) {
+								$clean_bc_row = decode(clean_data($bc_row));
+								$coupon_bc_data = [
+									'bc_id'            => $clean_bc_row,
+									'coupon_id'        => $coupon_result['id'],
+									'coupon_bc_status' => 1
+								];
+								$this->main->insert_data('coupon_bc_tbl', $coupon_bc_data);
+							}
+						}
+					}
+	
+					$orc_list = [];
+					if (in_array('orc', $prod_sale)) {
+						$orcs = $this->main->get_data("{$parent_db}.orc_list_tbl", ['orc_list_status' => 1]);
+						$orc_list = array_column($orcs, 'prod_sale_id');
+						foreach ($orcs as $row) {
+							$prod_sale_data = [
+								'prod_sale_id'            => $row->prod_sale_id,
+								'coupon_id'               => $coupon_result['id'],
+								'coupon_prod_sale_status' => 1
+							];
+							$this->main->insert_data('coupon_prod_sale_tbl', $prod_sale_data);
+						}
+					}
+	
+					$orc_list_count = count($orc_list);
+					foreach ($prod_sale as $row) {
+						if ($row != 'orc' && $row != 'all') {
+							$clean_prod_row = decode(clean_data($row));
+							if ($orc_list_count > 0) {
+								if (in_array($clean_prod_row, $orc_list)) {
+									continue;
+								}
+							}
+	
+							$prod_sale_data = [
+								'prod_sale_id'            => $clean_prod_row,
+								'coupon_id'               => $coupon_result['id'],
+								'coupon_prod_sale_status' => 1
+							];
+							$this->main->insert_data('coupon_prod_sale_tbl', $prod_sale_data);
+						}
+					}
+				}
+	
+				if ($trans_result['result'] && $coupon_result['result']) {
+					$this->_store_coupon_trans_details($trans_result['id'], $coupon_result['id'], $order_type, $i);
 
-        $name           = strtoupper(trim($name));
-        $holder_name    = strtoupper(trim($holder_name));
-        $holder_address = strtoupper(trim($holder_address));
-
-        for ($i = 1; $i <= $product_coupon_qty; $i++) {
-            $code = $this->_get_coupon();
-            $data = [
-                'coupon_name'           => $name,
-                'coupon_code'           => $code,
-                'coupon_amount'         => $amount,
-                'coupon_value'          => $voucher_value,
-				'coupon_regular_value'  => $voucher_regular_value,
-                'coupon_qty'            => 1,
-                'coupon_use'            => 0,
-                'coupon_value_type_id'  => $value_type,
-                'coupon_type_id'        => 2,
-                'coupon_cat_id'         => $category,
-                'user_id'               => $user_id,
-                'coupon_start'          => $start,
-                'coupon_end'            => $end,
-                'coupon_holder_name'    => $holder_name,
-                'coupon_holder_type_id' => $holder_type,
-                'coupon_holder_email'   => $holder_email,
-                'coupon_holder_contact' => $holder_contact,
-                'coupon_holder_address' => $holder_address,
-                'coupon_holder_tin'     => $holder_tin,
-                'coupon_added'          => date_now(),
-                'coupon_status'         => 2,
-                'is_nationwide'         => $is_nationwide,
-                'is_orc'                => $is_orc,
-                'invoice_number'        => $invoice_number,
-                'payment_status'        => $payment_status,
-				'company_id'        	=> $company_id,
-				'customer_id'        	=> $customer_id,
-            ];
-
-
-            $coupon_result = $this->main->insert_data('coupon_tbl', $data, TRUE);
-            
-            if ($coupon_result['result']) {
-
-
-                $this->_store_coupon_action_log(1, $coupon_result['id']);
-
-                foreach ($brand as $brand_row) {
-                    $clean_brand_row = decode(clean_data($brand_row));
-                    $coupon_brand_data  = [
-                        'brand_id'            => $clean_brand_row,
-                        'coupon_id'           => $coupon_result['id'],
-                        'coupon_brand_status' => 1
-                    ];
-                    $this->main->insert_data('coupon_brand_tbl', $coupon_brand_data);
-                }
-                
-                if (in_array('nationwide', $bc)) {
-                    $bc_list = $this->main->get_data("{$parent_db}.bc_tbl", ['bc_status' => 1]);
-                    foreach ($bc_list as $bc_row) {
-                        $coupon_bc_data = [
-                            'bc_id'            => $bc_row->bc_id,
-                            'coupon_id'        => $coupon_result['id'],
-                            'coupon_bc_status' => 1
-                        ];
-                        $this->main->insert_data('coupon_bc_tbl', $coupon_bc_data);
-                    }
-                } else {
-                    foreach ($bc as $bc_row) {
-                        $clean_bc_row = decode(clean_data($bc_row));
-                        $coupon_bc_data = [
-                            'bc_id'            => $clean_bc_row,
-                            'coupon_id'        => $coupon_result['id'],
-                            'coupon_bc_status' => 1
-                        ];
-                        $this->main->insert_data('coupon_bc_tbl', $coupon_bc_data);
-                    }
-                }
-
-                $orc_list = [];
-                if (in_array('orc', $prod_sale)) {
-                    $orcs = $this->main->get_data("{$parent_db}.orc_list_tbl", ['orc_list_status' => 1]);
-                    $orc_list = array_column($orcs, 'prod_sale_id');
-                    foreach ($orcs as $row) {
-                        $prod_sale_data = [
-                            'prod_sale_id'            => $row->prod_sale_id,
-                            'coupon_id'               => $coupon_result['id'],
-                            'coupon_prod_sale_status' => 1
-                        ];
-                        $this->main->insert_data('coupon_prod_sale_tbl', $prod_sale_data);
-                    }
-                }
-
-                $orc_list_count = count($orc_list);
-                foreach ($prod_sale as $row) {
-                    if ($row != 'orc' && $row != 'all') {
-                        $clean_prod_row = decode(clean_data($row));
-                        if ($orc_list_count > 0) {
-                            if (in_array($clean_prod_row, $orc_list)) {
-                                continue;
-                            }
-                        }
-
-                        $prod_sale_data = [
-                            'prod_sale_id'            => $clean_prod_row,
-                            'coupon_id'               => $coupon_result['id'],
-                            'coupon_prod_sale_status' => 1
-                        ];
-                        $this->main->insert_data('coupon_prod_sale_tbl', $prod_sale_data);
-                    }
-                }
-
-                $pdf_path = $this->_generate_coupon_pdf($coupon_result['id'], $scope_masking, $display_exp);
-                $set      = [ 'coupon_pdf_path' => $pdf_path ];
-                $where    = [ 'coupon_id' => $coupon_result['id'] ];
-                $this->main->update_data('coupon_tbl', $set, $where);
-            }
-
-            if ($trans_result['result'] && $coupon_result['result']) {
-                $this->_store_coupon_trans_details($trans_result['id'], $coupon_result['id']);
-
-                // if ($this->input->post('email_notif') != FALSE) {
-                //     $this->_email_transaction_coupon($trans_result['id']);
-                // }
-
-                // if ($this->input->post('sms_notif') != FALSE) {
-                //     $this->_send_coupon_sms($coupon_result['id']);
-                // }
-            }
-        }
+					$pdf_path = $this->_generate_coupon_pdf($coupon_result['id'], $scope_masking, $trans_result['id'], $display_exp);
+					
+					$set      = [ 'coupon_pdf_path' => $pdf_path ];
+					$where    = [ 'coupon_id' => $coupon_result['id'] ];
+					$this->main->update_data('coupon_tbl', $set, $where);
+	
+					// if ($this->input->post('email_notif') != FALSE) {
+					//     $this->_email_transaction_coupon($trans_result['id']);
+					// }
+	
+					// if ($this->input->post('sms_notif') != FALSE) {
+					//     $this->_send_coupon_sms($coupon_result['id']);
+					// }
+				}
+			}
+		}
 
         if($this->db->trans_status() === FALSE){
             $this->db->trans_rollback();
@@ -848,17 +1182,29 @@ class Creator extends CI_Controller {
         $this->_run_form_validation($rules);
 
         $coupon_id    = decode(clean_data($this->input->post('id')));
-        $check_coupon = $this->main->check_data('coupon_tbl', ['coupon_id' => $coupon_id], TRUE);
+		$coupon_join = array(
+			'coupon_transaction_details_tbl b' => 'a.coupon_id = b.coupon_Id AND a.coupon_Id = '.$coupon_id,
+			'coupon_transaction_header_tbl c' => 'b.coupon_transaction_header_id = c.coupon_transaction_header_id'
+		);
+		$coupon_select = 'a.*, c.coupon_transaction_header_id, c.coupon_scope_masking';
+        $check_coupon = $this->main->check_join('coupon_tbl a', $coupon_join, TRUE, FALSE, FALSE, $coupon_select);
+        // $check_coupon = $this->main->check_data('coupon_tbl a', ['coupon_id' => $coupon_id], TRUE);
         if ($check_coupon['result'] != TRUE) {
             $this->session->set_flashdata('message', 'Invalid '.SEC_SYS_NAME.' ID');
             redirect($_SERVER['HTTP_REFERER']);
         }
+		$coupon_transaction_header_id = $check_coupon['info']->coupon_transaction_header_id;
+		$coupon_scope_masking = $check_coupon['info']->coupon_scope_masking;
         
         $link_hash    = '';
         if ($check_coupon['info']->coupon_status == 1) {
-            $link_hash = '#nav-approved';
+            $link_hash = '#nav-active';
         } elseif ($check_coupon['info']->coupon_status == 2) {
             $link_hash = '#nav-pending';
+        } elseif ($check_coupon['info']->coupon_status == 4) {
+            $link_hash = '#nav-first-approved';
+        } elseif ($check_coupon['info']->coupon_status == 5) {
+            $link_hash = '#nav-approved';
         } elseif ($check_coupon['info']->coupon_status == 0) {
             $link_hash = '#nav-inactive';
         }
@@ -888,7 +1234,7 @@ class Creator extends CI_Controller {
         if ($result) {
             $this->_store_coupon_action_log(2, $coupon_id);
 
-            $pdf_path = $this->_generate_coupon_pdf($coupon_id);
+            $pdf_path = $this->_generate_coupon_pdf($coupon_id, $coupon_scope_masking, $coupon_transaction_header_id);
             $set      = [ 'coupon_pdf_path' => $pdf_path ];
             $where    = [ 'coupon_id' => $coupon_id ];
             $this->main->update_data('coupon_tbl', $set, $where);
@@ -926,13 +1272,15 @@ class Creator extends CI_Controller {
         $transaction_id    = decode(clean_data($this->input->post('id')));
 		$payment_terms      = ($this->input->post('payment_terms') != NULL) ? clean_data($this->input->post('payment_terms')) : 0;
         $payment_type_id    = ($this->input->post('payment_type_id') != NULL) ? clean_data(decode($this->input->post('payment_type_id'))) : 1;
-		$payment_status     = ($payment_type_id == 4) ? 0 : 1; //* UNPAID WHEN CREDIT PAYMENT TYPE
+		$payment_status     = ($payment_type_id == 4 || $payment_type_id == 7) ? 0 : 1; //* UNPAID WHEN CREDIT PAYMENT TYPE
 		$customer_id    	= ($this->input->post('upd_customer_id') != NULL) ? clean_data(decode($this->input->post('upd_customer_id'))) : NULL;
-		$customer_name = "";
-		if(!is_numeric($customer_id)){
-			$customer_name = clean_data(trim($this->input->post('customer_id')));
+		if($customer_id){
+			$customer_name = "";
+			if(!is_numeric($customer_id)){
+				$customer_name = clean_data(trim($this->input->post('upd_customer_id')));
+			}
+			$customer_id = $this->_validate_customer($customer_id, $customer_name);
 		}
-		$customer_id = $this->_validate_customer($customer_id, $customer_name);
 
         $check_transaction = $this->main->check_data('coupon_transaction_header_tbl', ['coupon_transaction_header_id' => $transaction_id], TRUE);
         if ($check_transaction['result'] != TRUE) {
@@ -940,14 +1288,19 @@ class Creator extends CI_Controller {
             $this->session->set_flashdata('message', $alert_message);
             redirect($_SERVER['HTTP_REFERER']);
         }
+		$coupon_scope_masking = $check_transaction['info']->coupon_scope_masking;
         
         $link_hash = '';
         if ($check_transaction['info']->coupon_transaction_header_status == 1) {
-            $link_hash = '#nav-approved';
+            $link_hash = '#nav-active';
         } elseif ($check_transaction['info']->coupon_transaction_header_status == 2) {
             $link_hash = '#nav-pending';
+        } elseif ($check_transaction['info']->coupon_transaction_header_status == 5) {
+            $link_hash = '#nav-approved';
         } elseif ($check_transaction['info']->coupon_transaction_header_status == 0) {
             $link_hash = '#nav-inactive';
+        } elseif ($check_transaction['info']->coupon_transaction_header_status == 4) {
+            $link_hash = '#nav-first-approved';
         }
 
         $rules = [
@@ -982,9 +1335,11 @@ class Creator extends CI_Controller {
             'payment_type_id'    				=> $payment_type_id,
             'payment_terms'    					=> $payment_terms,
 			'payment_status'    				=> $payment_status,
-            'customer_id'    					=> $customer_id,
 			'coupon_pdf_archived'    			=> 0
         ];
+		if($customer_id){
+			$set['customer_id']					= $customer_id;
+		}
 
         $where = ['coupon_transaction_header_id' => $transaction_id];
         $trans_result  = $this->main->update_data('coupon_transaction_header_tbl', $set, $where);
@@ -1003,14 +1358,24 @@ class Creator extends CI_Controller {
                     'coupon_start'          => $start,
                     'coupon_end'            => $end,
                     'payment_status'            => $payment_status,
-					'customer_id'    			=> $customer_id,
                 ];
+
+				if($customer_id){
+					$set['customer_id']			= $customer_id;
+				}
 
                 $where = ['coupon_id' => $coupon_id]; 
                 $result = $this->main->update_data('coupon_tbl', $set, $where);
+
+				$set    = [
+					'freebie_date'  => $start,
+				];
+				$where  = ['coupon_id' => $row->coupon_id];
+				$this->main->update_data('survey_freebie_calendar_tbl', $set, $where);
+
                 if ($result) {
                     $this->_store_coupon_action_log(2, $coupon_id);
-                    $pdf_path = $this->_generate_coupon_pdf($coupon_id);
+                    $pdf_path = $this->_generate_coupon_pdf($coupon_id, $coupon_scope_masking, $transaction_id);
                     $set      = [ 'coupon_pdf_path' => $pdf_path ];
                     $where    = [ 'coupon_id' => $coupon_id ];
                     $this->main->update_data('coupon_tbl', $set, $where);
@@ -1065,7 +1430,7 @@ class Creator extends CI_Controller {
                 $this->_store_coupon_action_log(3, $coupon_id);
             }
             $this->session->set_flashdata('message', $msg);
-            redirect($_SERVER['HTTP_REFERER'].'#nav-approved');
+            redirect($_SERVER['HTTP_REFERER'].'#nav-active');
 		}else{
 			redirect('creator');
 		}
@@ -1224,11 +1589,12 @@ class Creator extends CI_Controller {
             $data['coupon_type'] = $this->main->get_data('coupon_type_tbl', ['coupon_type_status' => 1]);
             $data['value_type']  = $this->main->get_data('coupon_value_type_tbl a', ['coupon_value_type_status' => 1]);
 			$data['user_id'] = decode($info['user_id']);
-			$data['customer_select'] = $this->_get_customers_selection($check_transaction['info']->customer_id);
-			$payment_select = $this->_get_payment_types_selection($check_transaction['info']->payment_type_id);
+			$data['customer_select'] = $this->_get_customers_selection($check_transaction['info']->customer_id, $check_transaction['info']->is_advance_order);
+			$payment_select = $this->_get_payment_types_selection($check_transaction['info']->payment_type_id, NULL, $check_transaction['info']->is_advance_order);
 			$data['payment_fields'] = $this->_get_payment_details_fields($check_transaction['info']->payment_type_id, $check_transaction['info']->payment_type_id, $check_transaction['info']->payment_terms, $payment_select);
 
-            $html = $this->load->view('creator/coupon/transaction_coupon_edit_modal_content', $data, TRUE);
+			$dynamic_content = 'coupon/transaction_coupon_edit_modal_content';
+            $html = $this->load->view($dynamic_content, $data, TRUE);
 
             $result = [
                 'result' => TRUE,
@@ -1311,8 +1677,9 @@ class Creator extends CI_Controller {
         echo json_encode($result);
     }
 
-    private function _generate_coupon_pdf($coupon_id, $scope_masking="", $display_exp=0)
+    private function _generate_coupon_pdf($coupon_id, $scope_masking="", $transaction_id=0, $display_exp=0)
     {
+		
     	ini_set('max_execution_time', 0); 
         ini_set('memory_limit','2048M');
         $parent_db = $GLOBALS['parent_db'];
@@ -1329,9 +1696,14 @@ class Creator extends CI_Controller {
             CONCAT_WS(', ', 'OVEN ROASTED CHICKEN',(SELECT GROUP_CONCAT(x.prod_sale_name SEPARATOR ', ') FROM coupon_prod_sale_tbl z JOIN {$parent_db}.product_sale_tbl x ON z.prod_sale_id = x.prod_sale_id WHERE z.coupon_id = a.coupon_id AND coupon_prod_sale_status = 1 AND z.prod_sale_id NOT IN (SELECT y.prod_sale_id FROM {$parent_db}.orc_list_tbl y WHERE y.orc_list_status = 1))), 
             (SELECT GROUP_CONCAT(x.prod_sale_name SEPARATOR ', ') FROM coupon_prod_sale_tbl z JOIN {$parent_db}.product_sale_tbl x ON z.prod_sale_id = x.prod_sale_id WHERE z.coupon_id = a.coupon_id AND coupon_prod_sale_status = 1))) AS 'products'";
 
-        $join = array('coupon_category_tbl a1' => 'a.coupon_cat_id = a1.coupon_cat_id AND a1.coupon_cat_status = 1 AND a.coupon_id = ' . $coupon_id);
+        $join = array(
+			'coupon_category_tbl a1' => 'a.coupon_cat_id = a1.coupon_cat_id AND a1.coupon_cat_status = 1 AND a.coupon_id = ' . $coupon_id,
+			'coupon_transaction_details_tbl c' => 'c.coupon_id = a.coupon_id'
+		);
 
         $coupon      = $this->main->get_join('coupon_tbl a', $join, TRUE, FALSE, FALSE, $select);
+		
+		
         $design      = $coupon->coupon_cat_design;
         $back_design = $coupon->coupon_cat_design_back;
 
@@ -1374,9 +1746,10 @@ class Creator extends CI_Controller {
             'bgcolor' => false
         ];
 
-        
+		
 
-        if(!$scope_masking){
+        
+		if(!$scope_masking){
 			$coupon_bcs = explode(', ', $coupon->bcs);
 			$coupon_bcs_count = count($coupon_bcs);
 			$bcs = '';
@@ -1394,7 +1767,7 @@ class Creator extends CI_Controller {
 		}
 
 
-        if($coupon->coupon_cat_id == 1){ // GIFT EVOUCHER
+        if($coupon->coupon_cat_id == 1){ //* GIFT EVOUCHER
 
         	if($coupon->coupon_type_id == 1){
 
@@ -1422,6 +1795,7 @@ class Creator extends CI_Controller {
 		            $additional_details = 'AMOUNT    : ' . $value . ' Discount for ' . $coupon->products;
 		        }
 		    }
+			
 			$pdf->AddPage('L', $custom_layout);
 	        $pdf->setJPEGQuality(100);
 	        $pdf->SetLineStyle(array('width' => 1, 'cap' => 'butt', 'join' => 'miter', 'dash' => 0, 'color' => array(252,238,33)));
@@ -1450,7 +1824,7 @@ class Creator extends CI_Controller {
 
 
 
-	    }elseif($coupon->coupon_cat_id == 4){ // MEAL EVOUCHER
+	    }elseif($coupon->coupon_cat_id == 4){ //* MEAL EVOUCHER
 
         	if($coupon->coupon_type_id == 1){
 
@@ -1505,7 +1879,7 @@ class Creator extends CI_Controller {
 			}
 
 
-	    }elseif($coupon->coupon_cat_id == 2){ // BIRTHDAY EVOUCHER
+	    }elseif($coupon->coupon_cat_id == 2){ //* BIRTHDAY EVOUCHER
 
 	    	if($coupon->coupon_type_id == 1){
 
@@ -1559,7 +1933,7 @@ class Creator extends CI_Controller {
 				$pdf->SetLineStyle(array('width' => 1, 'cap' => 'butt', 'join' => 'miter', 'dash' => 0, 'color' => array(252,238,33)));
 				$pdf->Image($back_design, 7, $y, 200, 80, 'JPG', '', '', true, 150, '', false, false, 1, false, false, false);
 			}
-	    }elseif($coupon->coupon_cat_id == 3){ // PAID EVOUCHER
+	    }elseif($coupon->coupon_cat_id == 3){ //* PAID EVOUCHER
 	    	if($coupon->coupon_type_id == 1){
 
 		        if ($coupon->coupon_value_type_id == 1) { // PERCENTAGE
@@ -1612,7 +1986,7 @@ class Creator extends CI_Controller {
             $pdf->SetLineStyle(array('width' => 1, 'cap' => 'butt', 'join' => 'miter', 'dash' => 0, 'color' => array(252,238,33)));
             $pdf->Image($back_design, 7, $y, 200, 80, 'JPG', '', '', true, 150, '', false, false, 1, false, false, false);
 
-	    }elseif($coupon->coupon_cat_id == 5){ // ROASTED CHICKEN ECOUPON
+	    }elseif($coupon->coupon_cat_id == 5){ //* ROASTED CHICKEN ECOUPON
 	    	if($coupon->coupon_type_id == 1){
 
 		        if ($coupon->coupon_value_type_id == 1) { // PERCENTAGE
@@ -1657,15 +2031,20 @@ class Creator extends CI_Controller {
 			$scope_x_arr = [286.5];
 			$scope_y_arr = [199];
 
+			$series_no_x_arr = [15];
+			$series_no_y_arr = [14];
+
 			$image_x = $image_x_arr[0];
 			$coupon_code_x = $coupon_code_x_arr[0];
 			$qr_x = $qr_x_arr[0];
 			$scope_x = $scope_x_arr[0];
+			$series_no_x = $series_no_x_arr[0];
 
 			$image_y = $image_y_arr[0];
 			$coupon_code_y = $coupon_code_y_arr[0];
 			$qr_y = $qr_y_arr[0];
 			$scope_y = $scope_y_arr[0];
+			$series_no_y = $series_no_y_arr[0];
 
 			
 			$pdf->AddPage('L', $custom_layout);
@@ -1673,6 +2052,10 @@ class Creator extends CI_Controller {
 		    $pdf->setJPEGQuality(100);
 			// $pdf->SetLineStyle(array('width' => 1, 'cap' => 'butt', 'join' => 'miter', 'dash' => 0, 'color' => array(252,238,33)));
 			$pdf->Image($design, $image_x, $image_y, $image_w, $image_h, 'JPG', '', '', true, 150, '', false, false, 0, true, false, false);
+			if($coupon->series_number){
+				$pdf->SetFont('helvetica', '', 20);
+				$pdf->Text($series_no_x, $series_no_y, $coupon->series_number);
+			}
 			$pdf->SetFont('helvetica', '', 32);
 			$pdf->Text($coupon_code_x, $coupon_code_y, $coupon->coupon_code);
 			$pdf->write2DBarcode($coupon->coupon_code, 'QRCODE,H', $qr_x, $qr_y, 34, 34, $style, 'N');
@@ -1688,7 +2071,14 @@ class Creator extends CI_Controller {
         $invalid_chars = [ '<' ,'>' ,':' ,'"' ,'/' ,'\\' ,'|' ,'?' ,'*', ' ', '[', ']', '\'', '(', ')' ];
         $cleaned_name  = str_replace($invalid_chars, '-', $coupon->coupon_name);
         $file_name     = $cleaned_name . '_' . $coupon->coupon_code . '_' . $date_created . '.pdf';
-        $save_path     = '/assets/coupons/' . $file_name;
+		$save_path     = '/assets/coupons/' . $file_name;
+		if($transaction_id){
+			$save_path     = '/assets/coupons/' .$transaction_id. '/'. $file_name;
+			$folder_path     = FCPATH. '/assets/coupons/' .$transaction_id. '/';
+			if (!is_dir($folder_path)) {
+				mkdir($folder_path, 0777, true);
+			}
+		}
 
         $pdf->Output($cwd . $save_path, 'F');
         return $save_path;
@@ -2155,6 +2545,9 @@ class Creator extends CI_Controller {
 		// $scope_y_arr = [180, 370, 560]; // 162.5 diff
 		$scope_y_arr = [179, 369, 559]; // 162.5 diff
 
+		$series_no_x_arr = [48, 449.89];
+		$series_no_y_arr = [25, 215, 405];
+
 		$pdf        = new Pdf('P', 'mm', 'A4', true, 'UTF-8', false);
 
         $pdf->SetMargins(5, 10, 5, true);
@@ -2178,7 +2571,7 @@ class Creator extends CI_Controller {
             'bgcolor' => false
         ];
 
-        $select = "a.*, a1.*, c.coupon_scope_masking,
+        $select = "a.*, a1.*, c.coupon_scope_masking, b.series_number,
         IF(a.is_nationwide = 1, 
             'NATIONWIDE', 
             (SELECT GROUP_CONCAT(x.bc_name SEPARATOR ', ') FROM coupon_bc_tbl z JOIN {$parent_db}.bc_tbl x ON z.bc_id = x.bc_id WHERE z.coupon_id = a.coupon_id AND coupon_bc_status = 1)) AS 'bcs',
@@ -2222,7 +2615,7 @@ class Creator extends CI_Controller {
 				$back_design = $coupon->coupon_cat_design_back;
 				
 				
-				if($coupon->coupon_type_id == 1){
+				if($coupon->coupon_type_id == 1){ //* STANDARD COUPON
 		
 					if ($coupon->coupon_value_type_id == 1) { // PERCENTAGE
 						$value = $coupon->coupon_amount.'%';
@@ -2235,7 +2628,7 @@ class Creator extends CI_Controller {
 						$value = 'P' . $coupon->coupon_amount;
 						$additional_details = 'AMOUNT : ' . $value . ' Discount';
 					}
-				}elseif($coupon->coupon_type_id == 2){
+				}elseif($coupon->coupon_type_id == 2){ //* PRODUCT COUPON
 					if ($coupon->coupon_value_type_id == 1) { // PERCENTAGE
 						$value = $coupon->coupon_amount.'%';
 						if ($coupon->coupon_amount == 100) {
@@ -2273,11 +2666,13 @@ class Creator extends CI_Controller {
 					$coupon_code_x = $coupon_code_x_arr[0];
 					$qr_x = $qr_x_arr[0];
 					$scope_x = $scope_x_arr[0];
+					$series_no_x = $series_no_x_arr[0];
 				} else {
 					$image_x = $image_x_arr[1];
 					$coupon_code_x = $coupon_code_x_arr[1];
 					$qr_x = $qr_x_arr[1];
 					$scope_x = $scope_x_arr[1];
+					$series_no_x = $series_no_x_arr[1];
 				}
 
 				if($i < 3){ // first row
@@ -2285,22 +2680,29 @@ class Creator extends CI_Controller {
 					$coupon_code_y = $coupon_code_y_arr[0];
 					$qr_y = $qr_y_arr[0];
 					$scope_y = $scope_y_arr[0];
+					$series_no_y = $series_no_y_arr[0];
 				}elseif($i < 5){
 					$image_y = $image_y_arr[1];
 					$coupon_code_y = $coupon_code_y_arr[1];
 					$qr_y = $qr_y_arr[1];
 					$scope_y = $scope_y_arr[1];
+					$series_no_y = $series_no_y_arr[1];
 				}else{
 					$image_y = $image_y_arr[2];
 					$coupon_code_y = $coupon_code_y_arr[2];
 					$qr_y = $qr_y_arr[2];
 					$scope_y = $scope_y_arr[2];
+					$series_no_y = $series_no_y_arr[2];
 				}
 
 				$pdf->setJPEGQuality(100);
 				// $pdf->SetLineStyle(array('width' => 1, 'cap' => 'butt', 'join' => 'miter', 'dash' => 0, 'color' => array(252,238,33)));
 				$pdf->Image($design, $image_x, $image_y, 360, 180, 'JPG', '', '', true, 150, '', false, false, 0, false, false, false);
-				$pdf->SetFont('helvetica', '', 24);
+				if($coupon->series_number){
+					$pdf->SetFont('helvetica', '', 16);
+					$pdf->Text($series_no_x, $series_no_y, $coupon->series_number);
+				}
+				$pdf->SetFont('helvetica', '', 26);
 				$pdf->Text($coupon_code_x, $coupon_code_y, $coupon->coupon_code);
 				$pdf->write2DBarcode($coupon->coupon_code, 'QRCODE,H', $qr_x, $qr_y, 30, 30, $style, 'N');
 				$pdf->SetFont('helvetica', '', 12);
@@ -2489,7 +2891,7 @@ class Creator extends CI_Controller {
         $check_id  = $this->main->check_data('coupon_transaction_header_tbl a', $where, TRUE);
         if ($check_id['result']) {
 
-            $coupon_trans_select = "*,
+            $coupon_trans_select = "a.*, b.*, c.*, d.*, e.*, f.is_advance_order,
 			IF(c.coupon_value_type_id=1,CONCAT(b.coupon_amount,'%'),CONCAT('P',b.coupon_amount)) AS coupon_amount,
             IF(b.is_nationwide = 1, 
                 'Nationwide', 
@@ -2504,12 +2906,20 @@ class Creator extends CI_Controller {
                 'coupon_value_type_tbl c' => 'c.coupon_value_type_id = b.coupon_value_type_id AND coupon_transaction_header_id = ' . $id,
                 'coupon_holder_type_tbl d' => 'd.coupon_holder_type_id = b.coupon_holder_type_id',
 				'company_tbl e'            => 'b.company_id = e.company_id',
+				'coupon_transaction_header_tbl f' => 'f.coupon_transaction_header_id = a.coupon_transaction_header_id'
             ];
 
             $data['trans_details'] = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join, FALSE, 'b.coupon_added DESC', FALSE, $coupon_trans_select);
             $data['trans_header']  = $check_id['info'];
 
-            $html = $this->load->view('creator/coupon/coupon_trans_modal_content', $data, TRUE);
+			$max_series = $this->main->get_data('coupon_transaction_details_tbl', ['coupon_transaction_header_id' => $id], TRUE, 'MAX(series_number) AS max_series');
+			$data['max_series'] = !empty($max_series) ? $max_series->max_series : 0;
+			$min_series = $this->main->get_data('coupon_transaction_details_tbl', ['coupon_transaction_header_id' => $id], TRUE, 'MIN(series_number) AS min_series');
+			$data['min_series'] = !empty($min_series) ? $min_series->min_series : 0;
+
+			$data['controller'] = $this->controller;
+			$dynamic_content = 'coupon/coupon_trans_modal_content';
+            $html = $this->load->view($dynamic_content, $data, TRUE);
 
             $result = [
                 'result' => TRUE,
@@ -2530,7 +2940,7 @@ class Creator extends CI_Controller {
         $parent_db = $GLOBALS['parent_db'];
         $where     = ['coupon_transaction_header_id' => $id];
 
-        $coupon_trans_select = "*,
+        $coupon_trans_select = "a.*, b.*, c.*, d.*, e.*, f.is_advance_order,
 		IF(c.coupon_value_type_id=1,CONCAT(b.coupon_amount,'%'),CONCAT('P',b.coupon_amount)) AS coupon_amount,
         IF(b.is_nationwide = 1, 
             'Nationwide', 
@@ -2544,12 +2954,20 @@ class Creator extends CI_Controller {
             'coupon_tbl b'            => 'b.coupon_id = a.coupon_id',
             'coupon_value_type_tbl c' => 'c.coupon_value_type_id = b.coupon_value_type_id AND coupon_transaction_header_id = ' . $id,
             'coupon_holder_type_tbl d' => 'd.coupon_holder_type_id = b.coupon_holder_type_id',
-			'company_tbl e'				=> 'b.company_id = e.company_id'
+			'company_tbl e'				=> 'b.company_id = e.company_id',
+			'coupon_transaction_header_tbl f' => 'f.coupon_transaction_header_id = a.coupon_transaction_header_id'
         ];
 
         $data['trans_details'] = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join, FALSE, 'b.coupon_added DESC', FALSE, $coupon_trans_select);
 
-        return $this->load->view('creator/coupon/success_product_coupon_trans_details', $data, TRUE);
+		$max_series = $this->main->get_data('coupon_transaction_details_tbl', ['coupon_transaction_header_id' => $id], TRUE, 'MAX(series_number) AS max_series');
+		$data['max_series'] = !empty($max_series) ? $max_series->max_series : 0;
+		$min_series = $this->main->get_data('coupon_transaction_details_tbl', ['coupon_transaction_header_id' => $id], TRUE, 'MIN(series_number) AS min_series');
+		$data['min_series'] = !empty($min_series) ? $min_series->min_series : 0;
+
+		$data['controller'] = $this->controller;
+		$dynamic_content = 'coupon/success_product_coupon_trans_details';
+        return $this->load->view($dynamic_content, $data, TRUE);
 
     }
 
@@ -3779,7 +4197,7 @@ class Creator extends CI_Controller {
                 $this->_upload_coupon_attachment($coupon_id, 2);
             }
 
-			$msg    = ($result == TRUE) ? '<div class="alert alert-success">'.SEC_SYS_NAME.' successfully Activated.</div>' : '<div class="alert alert-danger">Error please try again!</div>';
+			$msg    = ($result == TRUE) ? '<div class="alert alert-success">'.SEC_SYS_NAME.' successfully Approved.</div>' : '<div class="alert alert-danger">Error please try again!</div>';
             $this->session->set_flashdata('message', $msg);
             redirect($_SERVER['HTTP_REFERER'].'#nav-approved');
 		}else{
@@ -3787,11 +4205,13 @@ class Creator extends CI_Controller {
 		}
     }
 
-	public function approve_transaction(){
+	public function publish_transaction(){
 		$info = $this->_require_login();
 
 		if($_SERVER['REQUEST_METHOD'] == 'POST'){
             $coupon_transaction_header_id = clean_data(decode($this->input->post('id')));
+
+			$status = 1; //* ACTIVE
 
             if (empty($coupon_transaction_header_id)) {
                 $alert_message = $this->alert_template('Transaction Header ID is Required', false);
@@ -3806,13 +4226,92 @@ class Creator extends CI_Controller {
                 redirect($_SERVER['HTTP_REFERER']);
             }
 
-            if ($check_id['info']->coupon_transaction_header_status == 1) {
+            if ($check_id['info']->coupon_transaction_header_status == $status) {
+                $alert_message = $this->alert_template('Transaction Header is already Published', false);
+                $this->session->set_flashdata('message', $alert_message);
+                redirect($_SERVER['HTTP_REFERER']);
+            }
+
+            $this->db->trans_start();
+
+			$set       = [
+                'coupon_transaction_header_status' => $status,
+            ];
+			$where     = ['coupon_transaction_header_id' => $coupon_transaction_header_id];
+			$result    = $this->main->update_data('coupon_transaction_header_tbl', $set, $where);
+			
+			$action_id = 3;
+            $this->_store_transaction_action_log($action_id, $coupon_transaction_header_id);
+
+            if ($result == TRUE) {
+                $coupon_join = [
+                    'coupon_tbl b'            => 'b.coupon_id = a.coupon_id',
+                    'coupon_value_type_tbl c' => 'c.coupon_value_type_id = b.coupon_value_type_id AND coupon_transaction_header_id = ' . $coupon_transaction_header_id
+                ];
+
+                $transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join);
+                foreach ($transaction_details as $row) {
+                    $set    = [
+                        'coupon_status'  => $status
+                    ];
+                    $where  = ['coupon_id' => $row->coupon_id];
+                    $result = $this->main->update_data('coupon_tbl', $set, $where);
+                    
+					$set    = [
+                        'survey_freebie_cal_status'  => $status
+                    ];
+                    $where  = ['coupon_id' => $row->coupon_id];
+                    $result = $this->main->update_data('survey_freebie_calendar_tbl', $set, $where);
+                }
+            }
+
+            if($this->db->trans_status() === FALSE){
+                $this->db->trans_rollback();
+                $message       = 'Error please try again!';
+                $alert_message = $this->alert_template($message, FALSE);
+            }else{
+                $this->db->trans_commit();
+                $message       = 'Transaction successfully Activated.';
+                $alert_message = $this->alert_template($message, TRUE);
+            }
+            $this->session->set_flashdata('message', $alert_message);
+            redirect($_SERVER['HTTP_REFERER'].'#nav-active');
+		}else{
+			redirect('admin');
+		}
+    }
+
+	public function approve_transaction(){
+		$info = $this->_require_login();
+
+		if($_SERVER['REQUEST_METHOD'] == 'POST'){
+            $coupon_transaction_header_id = clean_data(decode($this->input->post('id')));
+
+			$status = 5;
+
+            if (empty($coupon_transaction_header_id)) {
+                $alert_message = $this->alert_template('Transaction Header ID is Required', false);
+                $this->session->set_flashdata('message', $alert_message);
+                redirect($_SERVER['HTTP_REFERER']);
+            }
+
+            $check_id = $this->main->check_data('coupon_transaction_header_tbl', ['coupon_transaction_header_id' => $coupon_transaction_header_id], TRUE);
+            if (!$check_id['result']) {
+                $alert_message = $this->alert_template('Transaction Header ID Doesn\'t Exist', false);
+                $this->session->set_flashdata('message', $alert_message);
+                redirect($_SERVER['HTTP_REFERER']);
+            }
+
+            if ($check_id['info']->coupon_transaction_header_status == $status) {
                 $alert_message = $this->alert_template('Transaction Header is already Approve', false);
                 $this->session->set_flashdata('message', $alert_message);
                 redirect($_SERVER['HTTP_REFERER']);
             }
 
-			if(in_array($check_id['info']->coupon_cat_id, paid_category())){
+
+			if(in_array($check_id['info']->coupon_cat_id, paid_category()) && $check_id['info']->is_advance_order == 0){
+				$this->_validate_attachment('#nav-first-approved');
+
                 $coupon_join         = [ 'coupon_tbl b' => 'b.coupon_id = a.coupon_id AND a.coupon_transaction_header_id = ' . $coupon_transaction_header_id ];
                 $transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join, TRUE);
 
@@ -3844,13 +4343,15 @@ class Creator extends CI_Controller {
             $this->db->trans_start();
 
 			$set       = [
-                'coupon_transaction_header_status' => 1,
+                'coupon_transaction_header_status' => $status,
                 'invoice_number'                   => $invoice_number,
                 'sap_doc_no'                       => $sap_doc_no,
             ];
 			$where     = ['coupon_transaction_header_id' => $coupon_transaction_header_id];
 			$result    = $this->main->update_data('coupon_transaction_header_tbl', $set, $where);
 			$action_id = ($check_id['info']->coupon_transaction_header_status == 0) ? 3 : 5 ;
+			
+			
             $this->_store_transaction_action_log($action_id, $coupon_transaction_header_id);
 
             if ($result == TRUE) {
@@ -3862,12 +4363,18 @@ class Creator extends CI_Controller {
                 $transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join);
                 foreach ($transaction_details as $row) {
                     $set    = [
-                        'coupon_status'  => 1,
+                        'coupon_status'  => $status,
                         'invoice_number' => $invoice_number,
                         'sap_doc_no'     => $sap_doc_no,
                     ];
                     $where  = ['coupon_id' => $row->coupon_id];
                     $result = $this->main->update_data('coupon_tbl', $set, $where);
+                    
+					$set    = [
+                        'survey_freebie_cal_status'  => $status
+                    ];
+                    $where  = ['coupon_id' => $row->coupon_id];
+                    $result = $this->main->update_data('survey_freebie_calendar_tbl', $set, $where);
                 }
 
                 if ($action_id == 5) {
@@ -3885,13 +4392,194 @@ class Creator extends CI_Controller {
                 $alert_message = $this->alert_template($message, FALSE);
             }else{
                 $this->db->trans_commit();
-                $message       = 'Transaction successfully Activated.';
+                $message       = 'Transaction successfully Approved.';
                 $alert_message = $this->alert_template($message, TRUE);
             }
             $this->session->set_flashdata('message', $alert_message);
             redirect($_SERVER['HTTP_REFERER'].'#nav-approved');
 		}else{
-			redirect('admin');
+			redirect('creator');
+		}
+    }
+
+		
+	public function return_to_approve_transaction(){
+		$info = $this->_require_login();
+
+		if($_SERVER['REQUEST_METHOD'] == 'POST'){
+            $coupon_transaction_header_id = clean_data(decode($this->input->post('id')));
+			$status = 5; //* SECOND LEVEL APPROVED
+
+            if (empty($coupon_transaction_header_id)) {
+                $alert_message = $this->alert_template('Transaction Header ID is Required', false);
+                $this->session->set_flashdata('message', $alert_message);
+                redirect($_SERVER['HTTP_REFERER']);
+            }
+
+            $check_id = $this->main->check_data('coupon_transaction_header_tbl', ['coupon_transaction_header_id' => $coupon_transaction_header_id], TRUE);
+            if (!$check_id['result']) {
+                $alert_message = $this->alert_template('Transaction Header ID Doesn\'t Exist', false);
+                $this->session->set_flashdata('message', $alert_message);
+                redirect($_SERVER['HTTP_REFERER']);
+            }
+
+            if ($check_id['info']->coupon_transaction_header_status == $status) {
+                $alert_message = $this->alert_template('Transaction is already in finance approved', false);
+                $this->session->set_flashdata('message', $alert_message);
+                redirect($_SERVER['HTTP_REFERER']);
+            }
+
+            $this->db->trans_start();
+
+			$set       = [
+                'coupon_transaction_header_status' 		=> $status,
+            ];
+			$where     = ['coupon_transaction_header_id' => $coupon_transaction_header_id];
+			$result    = $this->main->update_data('coupon_transaction_header_tbl', $set, $where);
+			
+			$action_id = 12; //* BACK TO SECOND LEVEL APPROVE
+            $this->_store_transaction_action_log($action_id, $coupon_transaction_header_id);
+
+			if ($result == TRUE) {
+                $coupon_join = [
+                    'coupon_tbl b'            => 'b.coupon_id = a.coupon_id',
+                    'coupon_value_type_tbl c' => 'c.coupon_value_type_id = b.coupon_value_type_id AND coupon_transaction_header_id = ' . $coupon_transaction_header_id
+                ];
+
+                $transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join);
+                foreach ($transaction_details as $row) {
+                    $set    = [
+                        'coupon_status'  => $status
+                    ];
+                    $where  = ['coupon_id' => $row->coupon_id];
+                    $result = $this->main->update_data('coupon_tbl', $set, $where);
+                }
+
+				$this->_upload_transaction_attachment($coupon_transaction_header_id, 3);
+            }
+
+            if($this->db->trans_status() === FALSE){
+                $this->db->trans_rollback();
+                $message       = 'Error please try again!';
+                $alert_message = $this->alert_template($message, FALSE);
+            }else{
+                $this->db->trans_commit();
+                $message       = 'Transaction successfully returned to finance approved.';
+                $alert_message = $this->alert_template($message, TRUE);
+            }
+            $this->session->set_flashdata('message', $alert_message);
+            redirect($_SERVER['HTTP_REFERER'].'#nav-approved');
+		}else{
+			redirect('creator');
+		}
+    }
+
+	public function update_approve_transaction(){
+		$info = $this->_require_login();
+
+		if($_SERVER['REQUEST_METHOD'] == 'POST'){
+            $coupon_transaction_header_id = clean_data(decode($this->input->post('id')));
+			$status = 5; //* FINANCE APPROVED
+
+            if (empty($coupon_transaction_header_id)) {
+                $alert_message = $this->alert_template('Transaction Header ID is Required', false);
+                $this->session->set_flashdata('message', $alert_message);
+                redirect($_SERVER['HTTP_REFERER']);
+            }
+
+            $check_id = $this->main->check_data('coupon_transaction_header_tbl', ['coupon_transaction_header_id' => $coupon_transaction_header_id], TRUE);
+            if (!$check_id['result']) {
+                $alert_message = $this->alert_template('Transaction Header ID Doesn\'t Exist', false);
+                $this->session->set_flashdata('message', $alert_message);
+                redirect($_SERVER['HTTP_REFERER']);
+            }
+
+            
+			
+			if(in_array($check_id['info']->coupon_cat_id, paid_category()) && $check_id['info']->is_advance_order == 0){
+                $coupon_join         = [ 'coupon_tbl b' => 'b.coupon_id = a.coupon_id AND a.coupon_transaction_header_id = ' . $coupon_transaction_header_id ];
+                $transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join, TRUE);
+
+                if ($transaction_details->coupon_holder_type_id != 4) {
+                    if ($this->input->post('sap_doc_no') == NULL || empty($this->input->post('sap_doc_no'))) {
+                        $alert_message = $this->alert_template('Document Number is Required' . $transaction_details->coupon_holder_type_id, FALSE);
+                        $this->session->set_flashdata('message', $alert_message);
+                        redirect($_SERVER['HTTP_REFERER']);
+                    }
+                }
+
+                if ($transaction_details->coupon_holder_type_id != 1) {
+                    if ($this->input->post('invoice_num') == NULL || empty($this->input->post('invoice_num'))) {
+                        $alert_message = $this->alert_template('Invoice Number is Required', FALSE);
+                        $this->session->set_flashdata('message', $alert_message);
+                        redirect($_SERVER['HTTP_REFERER']);
+                    }
+                }
+
+                $invoice_number =  clean_data($this->input->post('invoice_num'));
+                $sap_doc_no     =  clean_data($this->input->post('sap_doc_no'));
+            } else {
+
+                $invoice_number =  '';
+                $sap_doc_no     =  '';
+            }
+
+
+            $this->db->trans_start();
+
+			$set       = [
+                'coupon_transaction_header_status' => $status,
+                'invoice_number'                   => $invoice_number,
+                'sap_doc_no'                       => $sap_doc_no,
+            ];
+			$where     = ['coupon_transaction_header_id' => $coupon_transaction_header_id];
+			$result    = $this->main->update_data('coupon_transaction_header_tbl', $set, $where);
+			$action_id = 11 ; //* UPDATE SECOND LEVEL APPROVAL INPUTS
+			
+			
+            $this->_store_transaction_action_log($action_id, $coupon_transaction_header_id);
+
+            if ($result == TRUE) {
+                $coupon_join = [
+                    'coupon_tbl b'            => 'b.coupon_id = a.coupon_id',
+                    'coupon_value_type_tbl c' => 'c.coupon_value_type_id = b.coupon_value_type_id AND coupon_transaction_header_id = ' . $coupon_transaction_header_id
+                ];
+
+                $transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join);
+                foreach ($transaction_details as $row) {
+                    $set    = [
+                        'coupon_status'  => $status,
+                        'invoice_number' => $invoice_number,
+                        'sap_doc_no'     => $sap_doc_no,
+                    ];
+                    $where  = ['coupon_id' => $row->coupon_id];
+                    $result = $this->main->update_data('coupon_tbl', $set, $where);
+
+					$set    = [
+                        'survey_freebie_cal_status'  => $status
+                    ];
+                    $where  = ['coupon_id' => $row->coupon_id];
+                    $result = $this->main->update_data('survey_freebie_calendar_tbl', $set, $where);
+                }
+
+                if (isset($_FILES['attachment']) && $_FILES['attachment']['name'][0] != '') {
+                    $this->_upload_transaction_attachment($coupon_transaction_header_id, 3);
+                }
+            }
+
+            if($this->db->trans_status() === FALSE){
+                $this->db->trans_rollback();
+                $message       = 'Error please try again!';
+                $alert_message = $this->alert_template($message, FALSE);
+            }else{
+                $this->db->trans_commit();
+                $message       = 'Transaction successfully updated.';
+                $alert_message = $this->alert_template($message, TRUE);
+            }
+            $this->session->set_flashdata('message', $alert_message);
+            redirect($_SERVER['HTTP_REFERER'].'#nav-approved');
+		}else{
+			redirect('creator');
 		}
     }
 
@@ -3959,9 +4647,13 @@ class Creator extends CI_Controller {
 		}
     }
 
-	public function _get_customers_selection($customer_id=NULL){
+	public function _get_customers_selection($customer_id=NULL, $is_advance_order=0){
 		
-		$customers         = $this->main->get_data('customers_tbl a', ['customer_status' => 1]);
+		$filter = ['customer_status' => 1];
+		if($is_advance_order){
+			$filter = ['customer_id' => $customer_id];
+		}
+		$customers         = $this->main->get_data('customers_tbl a', $filter);
 		$customer_select = '<option value="">Select Customer</option>';
 		foreach ($customers as $row) {
 			$selected = '';
@@ -3973,8 +4665,16 @@ class Creator extends CI_Controller {
 		return $customer_select;
 	}
 
-	public function _get_payment_types_selection($payment_type_id=NULL, $rec_payment_type_id=NULL){
+	public function _get_payment_types_selection($payment_type_id=NULL, $rec_payment_type_id=NULL, $is_advance_order=0){
 		$where               = ['payment_type_status' => 1];
+		if($is_advance_order){
+			if($payment_type_id){
+				$where               = ['payment_type_id' => $payment_type_id];
+			}
+			if($rec_payment_type_id){
+				$where               = ['payment_type_id' => $rec_payment_type_id];
+			}
+		}
 		$payment_types         = $this->main->get_data('payment_types_tbl', $where);
 		$payment_select = '';
 		foreach ($payment_types as $row) {
@@ -4327,7 +5027,7 @@ class Creator extends CI_Controller {
         $check_coupon   = $this->main->check_data('coupon_transaction_header_tbl', ['coupon_transaction_header_id' => $transaction_id], TRUE);
         $result         = '';
         if ($check_coupon['result']) {
-			if(in_array($check_coupon['info']->coupon_cat_id, paid_category())){
+			if(in_array($check_coupon['info']->coupon_cat_id, paid_category()) && $check_coupon['info']->is_advance_order == 0){
                 $join        = ['coupon_tbl b' => 'b.coupon_id = a.coupon_id AND a.coupon_transaction_header_id = ' . $transaction_id];
                 $coupon      = $this->main->get_join('coupon_transaction_details_tbl a', $join, TRUE);
                 if ($coupon->coupon_holder_type_id == 4) {
@@ -4676,7 +5376,7 @@ class Creator extends CI_Controller {
     {
         $parent_db         = $GLOBALS['parent_db'];
         $check_holder_type = $this->main->check_data('coupon_holder_type_tbl', ['coupon_holder_type_id' => $holder_type]);
-        $this->_validate_result(!$check_holder_type, 'Holder Type Doesn\'t Exist');
+        $this->_validate_result(!$check_holder_type, 'Holder Type Doesn\'t Exist ('.$holder_type.')');
     }
 
 	private function _validate_company($id)
@@ -6109,27 +6809,51 @@ class Creator extends CI_Controller {
             $where  = ['coupon_transaction_header_id' => $coupon_transaction_header_id];
             $result = $this->main->update_data('coupon_transaction_header_tbl', $set, $where);
             
-            if ($result == TRUE) {
-                $coupon_join = [
-                    'coupon_tbl b'            => 'b.coupon_id = a.coupon_id',
-                    'coupon_value_type_tbl c' => 'c.coupon_value_type_id = b.coupon_value_type_id AND coupon_transaction_header_id = ' . $coupon_transaction_header_id
-                ];
-
-                $transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join);
-                foreach ($transaction_details as $row) {
-                    $set    = [
-						'coupon_status' => 3,
-						'coupon_code'	=> $row->coupon_code.'-xx'
+            $proceed_to_cancel = TRUE;
+			if($check_id['info']->parent_transaction_header_id){ //* a child trans from an advance order.
+				$check_parent_id = $this->main->check_data('coupon_transaction_header_tbl', ['coupon_transaction_header_id' => $check_id['info']->parent_transaction_header_id], TRUE);
+				if($check_parent_id['result'] && $check_parent_id['info']->coupon_transaction_header_status == 3){//* parent already cancelled
+					$proceed_to_cancel = TRUE;
+				} else {
+					$proceed_to_cancel = FALSE;
+				}
+			}
+			
+			if(!$proceed_to_cancel){
+				$params = [
+					'header_id' => $check_id['info']->coupon_transaction_header_id,
+					'parent_header_id' => $check_id['info']->parent_transaction_header_id,
+				];
+				$this->_update_coupon_back_to_parent_details($params);
+			} else {
+				if ($result == TRUE) {
+					$coupon_join = [
+						'coupon_tbl b'            => 'b.coupon_id = a.coupon_id',
+						'coupon_value_type_tbl c' => 'c.coupon_value_type_id = b.coupon_value_type_id AND coupon_transaction_header_id = ' . $coupon_transaction_header_id
 					];
-                    $where  = ['coupon_id' => $row->coupon_id];
-                    $result = $this->main->update_data('coupon_tbl', $set, $where);
-					$file_name = FCPATH . '/' . $row->coupon_pdf_path;
-                    if ($result) {
-						unlink($file_name);
-                        $this->_store_coupon_action_log(6, $row->coupon_id);
-                    }
-                }
-            }
+	
+					$transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join);
+					foreach ($transaction_details as $row) {
+						$set    = [
+							'coupon_status' => 3,
+							'coupon_code'	=> $row->coupon_code.'-xx'
+						];
+						$where  = ['coupon_id' => $row->coupon_id];
+						$result = $this->main->update_data('coupon_tbl', $set, $where);
+						$file_name = FCPATH . '/' . $row->coupon_pdf_path;
+						if ($result) {
+							unlink($file_name);
+							$this->_store_coupon_action_log(6, $row->coupon_id);
+						}
+	
+						$set    = [
+							'survey_freebie_cal_status'  => 3
+						];
+						$where  = ['coupon_id' => $row->coupon_id];
+						$result = $this->main->update_data('survey_freebie_calendar_tbl', $set, $where);
+					}
+				}
+			}
 
             if($this->db->trans_status() === FALSE){
                 $this->db->trans_rollback();
@@ -6143,7 +6867,7 @@ class Creator extends CI_Controller {
             $this->session->set_flashdata('message', $alert_message);
             redirect($_SERVER['HTTP_REFERER']);
         }else{
-            redirect('admin');
+            redirect('creator');
         }
     }
 
@@ -6378,6 +7102,7 @@ class Creator extends CI_Controller {
         $transaction_id = $transaction_id !== NULL || $transaction_id != 0 ? clean_data(decode($transaction_id)) : NULL;
         $check_coupon   = $this->main->check_data('coupon_transaction_header_tbl', ['coupon_transaction_header_id' => $transaction_id], TRUE);
         $result         = '';
+		$html			= '';
 		
         if ($check_coupon['result']) {
 			if(in_array($check_coupon['info']->coupon_cat_id, paid_category())){
@@ -6386,7 +7111,7 @@ class Creator extends CI_Controller {
 				$rec_payment_type_id = $check_coupon['info']->payment_type_id;
 				$rec_payment_terms = $check_coupon['info']->payment_terms;
 
-				$dropdown = $this->_get_payment_types_selection(decode($payment_type_id), $rec_payment_type_id);
+				$dropdown = $this->_get_payment_types_selection(decode($payment_type_id), $rec_payment_type_id, $check_coupon['info']->is_advance_order);
 				
 				$result = $this->_get_payment_details_fields(decode($payment_type_id), $rec_payment_type_id, $rec_payment_terms, $dropdown, $has_attachement, $read_only);
 			}

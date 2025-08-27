@@ -11,22 +11,66 @@
 				</div> -->
 
 				<div class="d-flex align-items-center justify-content-between w-100">
-                    <div class="d-flex align-items-center">
-                        <button type="button" class="btn btn-add btn-sm my-3" data-toggle="modal" data-target="#modal-add-product-coupon">
-							<span class="fas fa-plus-circle"></span> Product <?=SEC_SYS_NAME?>
-						</button> 
-                    </div>
-                    <div class="dropdown">
-                        <button class="btn btn-add btn-sm dropdown-toggle" type="button" id="orderTypeMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            <?=$order_type?>
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-right shadow-lg" aria-labelledby="orderTypeMenu">
-                            <a class="dropdown-item" href="<?=base_url('admin/product-coupon')?>" data-value="normal">Normal Orders</a>
-                            <a class="dropdown-item" href="<?=base_url('admin/product-coupon/'.encode(1))?>" data-value="advance">Advance Orders</a>
-                            <a class="dropdown-item" href="<?=base_url('admin/product-coupon/'.encode(2))?>" data-value="issue_on_advance">Issued from Advance Orders</a>
-                        </div>
-                    </div>
-                </div>
+					<?php if ($controller == 'admin' || $controller == 'creator'): ?>
+						<div class="d-flex align-items-center">
+							<button type="button" class="btn btn-add btn-sm my-3" data-toggle="modal" data-target="#modal-add-product-coupon">
+								<span class="fas fa-plus-circle"></span> Product <?=SEC_SYS_NAME?>
+							</button>
+						</div>
+					<?php endif; ?>
+					<div class="ml-auto d-flex">
+						<div class="dropdown mr-2">
+							<button class="btn btn-light btn-sm dropdown-toggle" type="button" id="orderTypeMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								<?=$order_type; ?>
+							</button>
+							<div class="dropdown-menu dropdown-menu-right shadow-lg" aria-labelledby="orderTypeMenu1">
+								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon')?>" data-value="normal">Normal Orders</a>
+								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'.encode(1))?>" data-value="advance">Advance Orders</a>
+								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'.encode(2))?>" data-value="issue_on_advance">Issued from Advance Orders</a>
+							</div>
+						</div>
+						<?php if(!empty($category_menu) && $filter_category): ?>
+						<div class="dropdown">
+							<button class="btn btn-light btn-sm dropdown-toggle" type="button" id="orderTypeMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								<?php
+								$display_name = $category_name == '' ? 'All Categories' : htmlspecialchars($category_name);
+								if (mb_strlen($display_name) > 13) {
+									$display_name = mb_substr($display_name, 0, 13) . '...';
+								}
+								echo ucwords(strtolower($display_name));
+								?>
+							</button>
+							<div class="dropdown-menu dropdown-menu-right shadow-lg" aria-labelledby="orderTypeMenu2">
+							<?php
+							// Determine selected order type from URL segment or GET param
+							$order_type_selected = 'normal';
+							$segments = $this->uri->segment_array();
+							if (isset($segments[3])) {
+								$order_type_selected = $segments[3];
+							} else {
+								$order_type_selected = encode(0);
+							}
+
+							?>
+							<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'. $order_type_selected . '/' .encode(0))?>" data-value="all-value">
+								All Categories
+							</a>
+							<?php
+							// Build category links with selected order type
+							foreach ($category_menu as $cat):
+								$cat_id_encoded = encode($cat->coupon_cat_id);
+								$order_type_param = $order_type_selected;
+								$url = base_url($controller . '/product-coupon/' . $order_type_param . '/' . $cat_id_encoded);
+							?>
+								<a class="dropdown-item" href="<?= $url ?>" data-value="<?= htmlspecialchars($cat->coupon_cat_name) ?>">
+									<?= ucwords(strtolower(htmlspecialchars($cat->coupon_cat_name))) ?>
+								</a>
+							<?php endforeach; ?>
+							</div>
+						</div>
+						<?php endif; ?>
+					</div>
+				</div>
 
                 <nav>
                     <div class="nav nav-tabs" id="nav-tab" role="tablist">
@@ -50,9 +94,9 @@
                 <div class="tab-content" id="nav-tabContent">
                     <div class="tab-pane fade show active" id="nav-pending" role="tabpanel" aria-labelledby="nav-pending-tab">
                         <br> 
-                        <div class="table-responsive">
+                        <div class="table-responsive trans-data">
 							
-							<table class="table table-striped table-condensed data-table table-hover display nowrap" style="width:100%">
+							<table class="table table-striped table-condensed data-table table-hover display nowrap" style="width:100%;">
 								<thead>
 									<tr>
 										<th scope="col">ID</th>
@@ -95,7 +139,7 @@
 											<div class="mb-0 d-flex justify-content-center align-items-center">
 												<?php
 												$params = [
-													'access_type' 					=> 'admin',
+													'access_type' 					=> $access_type,
 													'transaction_type' 				=> 'pending',
 													'coupon_transaction_header_id' 	=> $row->coupon_transaction_header_id,
 													'coupon_cat_id' 				=> $row->coupon_cat_id,
@@ -112,9 +156,9 @@
 						</div>
                     </div>
 
-                    <div class="tab-pane fade" id="nav-first-approved" role="tabpanel" aria-labelledby="nav-primary-appr-tab">
+                    <div class="tab-pane fade" id="nav-first-approved" role="tabpanel" aria-labelledby="nav-first-approved-tab">
                         <br>
-                        <div class="table-responsive">
+                        <div class="table-responsive trans-data">
                             <table class="table table-striped table-condensed data-table table-hover display nowrap" style="width:100%">
                                 <thead>
                                     <tr>
@@ -169,7 +213,7 @@
 											<div class="mb-0 d-flex justify-content-center align-items-center">
 												<?php
 												$params = [
-													'access_type' 					=> 'admin',
+													'access_type' 					=> $access_type,
 													'transaction_type' 				=> 'first-approved',
 													'coupon_transaction_header_id' 	=> $row->coupon_transaction_header_id,
 													'coupon_cat_id' 				=> $row->coupon_cat_id,
@@ -188,7 +232,7 @@
 
                     <div class="tab-pane fade" id="nav-approved" role="tabpanel" aria-labelledby="nav-approved-tab">
                         <br>
-                        <div class="table-responsive">
+                        <div class="table-responsive trans-data">
 							<table class="table table-striped table-condensed data-table table-hover display nowrap" style="width:100%">
 								<thead>
 									<tr>
@@ -245,7 +289,7 @@
 											<div class="mb-0 d-flex justify-content-center align-items-center">
 												<?php
 												$params = [
-													'access_type' 					=> 'admin',
+													'access_type' 					=> $access_type,
 													'transaction_type' 				=> 'second-approved',
 													'coupon_transaction_header_id' 	=> $row->coupon_transaction_header_id,
 													'coupon_cat_id' 				=> $row->coupon_cat_id,
@@ -265,7 +309,7 @@
 
 					<div class="tab-pane fade" id="nav-active" role="tabpanel" aria-labelledby="nav-active-tab">
                         <br>
-                        <div class="table-responsive">
+                        <div class="table-responsive trans-data">
                             <table class="table table-striped table-condensed data-table table-hover display nowrap" style="width:100%">
                                 <thead>
                                     <tr>
@@ -324,7 +368,7 @@
 											<div class="mb-0 d-flex justify-content-center align-items-center">
 												<?php
 												$params = [
-													'access_type' 					=> 'admin',
+													'access_type' 					=> $access_type,
 													'transaction_type' 				=> 'active',
 													'coupon_transaction_header_id' 	=> $row->coupon_transaction_header_id,
 													'coupon_cat_id' 				=> $row->coupon_cat_id,
@@ -347,7 +391,7 @@
 
                     <div class="tab-pane fade" id="nav-inactive" role="tabpanel" aria-labelledby="nav-inactive-tab">
                         <br>
-                        <div class="table-responsive">
+                        <div class="table-responsive trans-data">
                             <table class="table table-striped table-condensed data-table table-hover display nowrap" style="width:100%">
                                 <thead>
                                     <tr>
@@ -391,7 +435,7 @@
 											<div class="mb-0 d-flex justify-content-center align-items-center">
 												<?php
 												$params = [
-													'access_type' 					=> 'admin',
+													'access_type' 					=> $access_type,
 													'transaction_type' 				=> 'inactive',
 													'coupon_transaction_header_id' 	=> $row->coupon_transaction_header_id,
 													'coupon_cat_id' 				=> $row->coupon_cat_id,
@@ -421,9 +465,10 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/store-product-coupon')?>" class="needs-validation product-transaction" enctype="multipart/form-data" novalidate >
+                        <form method="POST" action="<?=base_url($controller.'/store-product-coupon')?>" class="needs-validation product-transaction" enctype="multipart/form-data" novalidate >
                             <div class="modal-body">
 								<div class="form-group">
+									<small class="form-text text-muted">Please select type of transaction: *.</small>
 									<div class="d-flex flex-wrap gap-2">
 										<div class="form-check mr-3 mb-2">
 											<input type="radio" name="order_type" class="form-check-input" id="for-normal-order" value="<?=encode('normal')?>">
@@ -441,20 +486,22 @@
 								</div>
 
 								<div id="for-usual-order-details">
+									<div class="for-usual-trans-inputs">
+										<div class="form-group">
+											<div class="form-check">
+												<input type="checkbox" name="for_printing" class="form-check-input" id="for-printing" value="1">
+												<label class="form-check-label" for="for-printing">For Printing</label>
+											</div>
+										</div>
+										
+										<div class="form-group">
+											<div class="form-check">
+												<input type="checkbox" name="for_image_conv" class="form-check-input" id="for-image-conv" value="1">
+												<label class="form-check-label" for="for-image-conv">With Image Convertion</label>
+											</div>
+										</div>
+									</div>
 
-									<div class="form-group">
-										<div class="form-check">
-											<input type="checkbox" name="for_printing" class="form-check-input" id="for-printing" value="1">
-											<label class="form-check-label" for="for-printing">For Printing</label>
-										</div>
-									</div>
-									
-									<div class="form-group">
-										<div class="form-check">
-											<input type="checkbox" name="for_image_conv" class="form-check-input" id="for-image-conv" value="1">
-											<label class="form-check-label" for="for-image-conv">With Image Convertion</label>
-										</div>
-									</div>
 									<div class="parent-transaction">
 										<div class="form-group">
 											<label>From Advance Order Transaction : *</label>
@@ -619,6 +666,13 @@
 										</div>
 									</div>
 									
+									<div class="form-group">
+										<div class="form-check">
+											<input type="checkbox" name="for_image_conv" class="form-check-input" id="adv-for-image-conv" value="1">
+											<label class="form-check-label" for="adv-for-image-conv">With Image Convertion</label>
+										</div>
+									</div>
+									
 									
 									<div class="form-group">
 										<label for="">Name : *</label>
@@ -731,7 +785,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/update-product-coupon')?>" class="needs-validation" enctype="multipart/form-data" novalidate>
+                        <form method="POST" action="<?=base_url($controller.'/update-product-coupon')?>" class="needs-validation" enctype="multipart/form-data" novalidate>
                             <div class="modal-body">
                             </div>
                             <div class="modal-footer">
@@ -752,7 +806,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/update-transaction-coupon')?>" class="needs-validation product-transaction" enctype="multipart/form-data" novalidate >
+                        <form method="POST" action="<?=base_url($controller.'/update-transaction-coupon')?>" class="needs-validation product-transaction" enctype="multipart/form-data" novalidate >
                             <div class="modal-body">
                             </div>
                             <div class="modal-footer">
@@ -791,7 +845,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/activate-coupon')?>" id="activate-coupon">
+                        <form method="POST" action="<?=base_url($controller.'/activate-coupon')?>" id="activate-coupon">
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center"><strong>Are you sure to activate this <?=SEC_SYS_NAME?>?</strong></p>
@@ -815,7 +869,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/deactivate-coupon')?>" id="deactivate-coupon">
+                        <form method="POST" action="<?=base_url($controller.'/deactivate-coupon')?>" id="deactivate-coupon">
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center"><strong>Are you sure to deactivate this <?=SEC_SYS_NAME?>?</strong></p>
@@ -861,7 +915,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/approve-transaction')?>" id="approve-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        <form method="POST" action="<?=base_url($controller.'/approve-transaction')?>" id="approve-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center modal-msg"></p>
@@ -886,7 +940,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/publish-transaction')?>" id="publish-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        <form method="POST" action="<?=base_url($controller.'/publish-transaction')?>" id="publish-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center modal-msg"></p>
@@ -911,7 +965,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/return-to-pending-transaction')?>" id="return-pending-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        <form method="POST" action="<?=base_url($controller.'/return-to-pending-transaction')?>" id="return-pending-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center"><strong>Are you sure to return this Transaction to Pending?</strong></p>
@@ -935,7 +989,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/return-to-first-approve-transaction')?>" id="return-first-approve-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        <form method="POST" action="<?=base_url($controller.'/return-to-first-approve-transaction')?>" id="return-first-approve-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center"><strong>Are you sure to return this Transaction to Treasury Approved?</strong></p>
@@ -959,7 +1013,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/return-to-approve-transaction')?>" id="return-approve-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        <form method="POST" action="<?=base_url($controller.'/return-to-approve-transaction')?>" id="return-approve-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center"><strong>Are you sure to return this Transaction to Finance Approved?</strong></p>
@@ -983,7 +1037,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/first-approve-transaction')?>" id="first-approve-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        <form method="POST" action="<?=base_url($controller.'/first-approve-transaction')?>" id="first-approve-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center modal-msg"></p>
@@ -1009,7 +1063,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/deactivate-transaction')?>" id="deactivate-transaction">
+                        <form method="POST" action="<?=base_url($controller.'/deactivate-transaction')?>" id="deactivate-transaction">
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center"><strong>Are you sure to deactivate this Transaction?</strong></p>
@@ -1032,7 +1086,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/approve-transaction')?>" id="activate-transaction">
+                        <form method="POST" action="<?=base_url($controller.'/approve-transaction')?>" id="activate-transaction">
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center"><strong>Are you sure to activate this Transaction?</strong></p>
@@ -1074,7 +1128,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/cancel-transaction')?>" id="cancel-transaction">
+                        <form method="POST" action="<?=base_url($controller.'/cancel-transaction')?>" id="cancel-transaction">
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center"><strong>Are you sure to cancel this Transaction?</strong></p>
@@ -1097,7 +1151,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/pay-transaction')?>" id="pay-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        <form method="POST" action="<?=base_url($controller.'/pay-transaction')?>" id="pay-transaction" enctype="multipart/form-data" class="needs-validation" novalidate>
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center"><strong>Are you sure to input payment details on this Transaction?</strong></p>
@@ -1122,7 +1176,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/archive-coupon-pdf')?>" id="archive-transaction">
+                        <form method="POST" action="<?=base_url($controller.'/archive-coupon-pdf')?>" id="archive-transaction">
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center"><strong>Are you sure to archive PDF on this Transaction?</strong></p>
@@ -1145,7 +1199,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <form method="POST" action="<?=base_url('admin/regenerate-coupon-pdf')?>" id="restore-transaction">
+                        <form method="POST" action="<?=base_url($controller.'/regenerate-coupon-pdf')?>" id="restore-transaction">
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="id">
                                 <p class="text-center"><strong>Are you sure to restore PDF on this Transaction?</strong></p>

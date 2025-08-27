@@ -81,10 +81,18 @@ html {
 
 .btn-add {
 	margin: 10px 0px;
-	background-color: #3f51b5;
+	background-color: #151247;
 	color: #fff;
-	border-radius: 0px;
+	border-radius: 8px;
+
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	/* transition: background-color 0.3s, color 0.3s; */
 	/*box-shadow: 0 3px 6px 0 rgba(237,28,44,0.8);*/
+}
+
+.btn-add:hover {
+	background-color: #151247;
+	color: #fff;
 }
 
 .btn-square {
@@ -669,4 +677,63 @@ html {
 	background-color: #e8e9eb; /* Light Gray Background */
 	padding: 15px;
 	border-radius: 0 0 8px 8px;
+}
+
+/* Target the fixed column header (rightmost) */
+.dtfc-fixed-right .dataTables_scrollHead th:last-child,
+.dtfc-fixed-right .dataTables_scrollHead td:last-child {
+	background-color: #1a174d !important; /* Your preferred color */
+	color: #fff !important; /* Optional: make text white */
+}
+
+.DTFC_Cloned thead th:last-child {
+	background-color: #1a174d !important;
+	color: #fff !important;
+}
+
+.DTFC_RightHeadWrapper thead th,
+.DTFC_RightBodyWrapper thead th {
+	background-color: #1a174d !important;
+	color: #fff !important;
+}
+
+.dropdown-menu {
+	max-height: none !important;
+	overflow-y: visible !important;
+}
+
+/* 
+.DTFC_Cloned .text-center,
+.DTFC_Cloned th:last-child,
+.DTFC_Cloned td:last-child {
+	overflow-x: hidden !important;
+	max-width: 120px;
+	width: 120px;
+	white-space: nowrap;
+}
+
+.DTFC_Cloned {
+	overflow-x: hidden !important;
+} */
+
+/* th.text-center,
+td.text-center,
+th:last-child,
+td:last-child {
+	min-width: 80px;
+	width: 80px;
+	max-width: 100px;
+	white-space: nowrap;
+	text-align: center;
+} */
+/* .DTFC_Cloned th,
+.DTFC_Cloned td {
+	width: 180px !important;
+	max-width: 180px !important;
+	white-space: nowrap !important;
+	overflow-x: hidden !important;
+} */
+
+.trans-data {
+	overflow: visible !important;
 }

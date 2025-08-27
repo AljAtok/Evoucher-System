@@ -1,3 +1,7 @@
+<?php if($min_series && $max_series): ?>
+<div class='mb-2'><strong>Series to Release: <em><?= $min_series ?> - <?= $max_series ?></em></strong></div>
+<?php endif; ?>
+
 <div class="table-responsive">
     <table class="table table-striped table-condensed data-table">
         <thead>
@@ -5,6 +9,9 @@
                 <th scope="col">Business Center</th>
                 <th scope="col">Brand</th>
                 <th scope="col">Name</th>
+				<?php if($min_series && $max_series): ?>
+                <th scope="col">Series No.</th>
+				<?php endif; ?>
                 <th scope="col">Code</th>
                 <th scope="col">Invoice Number</th>
                 <th scope="col">Document Number</th>
@@ -47,6 +54,9 @@
                 <td><?= $row->bc ?></td>
                 <td><?= $row->brands ?></td>
                 <td><?= $row->coupon_name ?></td>
+				<?php if($min_series && $max_series): ?>
+                <td><?= $row->series_number ?></td>
+				<?php endif; ?>
                 <td><?= $row->coupon_code ?></td>
                 <td><?= $row->invoice_number ?></td>
                 <td><?= $row->sap_doc_no_2 ? $row->sap_doc_no.';<br>'.$row->sap_doc_no_2: $row->sap_doc_no ?></td>

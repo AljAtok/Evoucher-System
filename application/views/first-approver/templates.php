@@ -7,6 +7,8 @@
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/bootstrap.min.css')?>"/>
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/jquery.mCustomScrollbar.min.css')?>">
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/dataTables.bootstrap4.min.css')?>">
+		<link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/responsive.bootstrap4.min.css')?>">
+		<link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/fixedColumns.bootstrap4.min.css')?>">
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/select2.min.css')?>"/>
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/select2-bootstrap4.min.css')?>">
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/daterangepicker.css') ?>" />
@@ -74,6 +76,9 @@
         <script type="text/javascript" src="<?=base_url('assets/js/jquery.mCustomScrollbar.concat.min.js')?>"></script>
         <script type="text/javascript" src="<?=base_url('assets/js/jquery.dataTables.min.js')?>"></script>
         <script type="text/javascript" src="<?=base_url('assets/js/dataTables.bootstrap4.min.js')?>"></script>
+
+		<script type="text/javascript" src="<?=base_url('assets/js/datatables.responsive.min.js')?>"></script>
+		<script type="text/javascript" src="<?=base_url('assets/js/dataTables.fixedColumns.min.js')?>"></script>
 
 		<script type="text/javascript" src="<?=base_url('assets/js/dataTables.buttons.min.js')?>"></script>
 		<script type="text/javascript" src="<?=base_url('assets/js/jszip.min.js')?>"></script>

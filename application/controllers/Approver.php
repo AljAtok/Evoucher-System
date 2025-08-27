@@ -8,6 +8,7 @@ class Approver extends CI_Controller {
     	parent::__construct();
     	$this->load->model('main_model', 'main');
         $GLOBALS['parent_db'] = parent_db();
+		$this->controller = strtolower(str_replace('_', '-', __CLASS__));
 	}
 
 	public function index()
@@ -113,16 +114,39 @@ class Approver extends CI_Controller {
         $this->load->view('approver/templates', $data);
     }
 
-    public function product_coupon()
+    public function product_coupon($is_advance_order = NULL)
     {
         $info      = $this->_require_login();
         $parent_db = $GLOBALS['parent_db'];
+		
+		$parent_id = FALSE;
+		$order_type = 'Normal Orders';
+		if(!empty($is_advance_order)){
+			$is_advance_order = decode($is_advance_order);
+			if($is_advance_order == 1){
+				$order_type = 'Advance Orders';
+			} elseif($is_advance_order == 2){
+				$order_type = 'Issued from Advance Orders';
+				$parent_id = TRUE;
+				$is_advance_order = 0;
+			} else {
+				$is_advance_order = 0;
+			}
+		} else {
+			$is_advance_order = 0;
+		}
+
+		if($parent_id){
+			$parent_filter = 'AND a.parent_transaction_header_id IS NOT NULL';
+		} else {
+			$parent_filter = 'AND a.parent_transaction_header_id IS NULL';
+		}
 
 		$join_salable = [
 			"{$parent_db}.product_tbl b" => 'a.prod_id = b.prod_id',
         ];
 		
-		$coupon_trans_select = '*, total_coupon_qty as `coupon_qty`';
+		$coupon_trans_select = '*, total_coupon_qty as `coupon_qty`, IF(a.parent_transaction_header_id, (SELECT CONCAT("#",x.coupon_transaction_header_id," - ", x.coupon_transaction_header_name) FROM coupon_transaction_header_tbl x WHERE a.parent_transaction_header_id = x.coupon_transaction_header_id), "") as parent_trans';
 
         $join_coupon = array(
         	"{$parent_db}.user_tbl b" => 'a.user_id = b.user_id',
@@ -134,10 +158,11 @@ class Approver extends CI_Controller {
         $user_id        = clean_data(decode($info['user_id']));
         $category_where = "a.coupon_cat_id IN (SELECT z.coupon_cat_id FROM user_access_tbl z WHERE z.user_id = {$user_id} AND user_access_status = 1)";
 
-        $data['pending_coupon_trans']  = $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 2 AND ' . $category_where);
-        $data['approved_coupon_trans'] = $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 1 AND ' . $category_where);
-        $data['first_appr_coupon_trans'] = $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 4 AND ' . $category_where);
-		$data['inactive_coupon_trans'] = $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 0 AND ' . $category_where);
+        $data['pending_coupon_trans']  		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 2 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
+		$data['first_appr_coupon_trans'] 	= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 4 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
+		$data['approved_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 5 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
+		$data['active_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 1 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
+        $data['inactive_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 0 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
 
         $data['products']    = $this->main->get_join("{$parent_db}.product_sale_tbl a", $join_salable);
         $data['brand']       = $this->main->get_data("{$parent_db}.brand_tbl", ['brand_status' => 1]);
@@ -145,10 +170,49 @@ class Approver extends CI_Controller {
         $data['coupon_type'] = $this->main->get_data('coupon_type_tbl', ['coupon_type_status' => 1]);
         $data['value_type']  = $this->main->get_data('coupon_value_type_tbl a', ['coupon_value_type_status' => 1]);
         $data['category']    = $this->main->get_data('coupon_category_tbl a', 'coupon_cat_status = 1 AND ' . $category_where);
+		$data['category_menu']    			= [];
+		$data['filter_category'] 			= FALSE;
         $data['holder_type'] = $this->main->get_data('coupon_holder_type_tbl a', ['coupon_holder_type_status' => 1]);
         $data['title']       = 'Product '.SEC_SYS_NAME.'';
-		$data['top_nav']     = $this->load->view('fix/top_nav_content', $data, TRUE);
-        $data['content']     = $this->load->view('approver/coupon/product_coupon_content', $data, TRUE);
+		$data['is_advance_order'] 			= $is_advance_order;
+		$data['parent_id'] 					= $parent_id;
+		$data['order_type'] 				= $order_type;
+		$qry = "SELECT 
+					coupon_qty, 
+					coupon_transaction_header_id, 
+					coupon_transaction_header_name, 
+					coupon_scope
+				FROM (
+					SELECT 
+						COUNT(b.coupon_transaction_details_id) AS coupon_qty,
+						a.coupon_transaction_header_id,
+						a.coupon_transaction_header_name,
+						IF(
+							c.is_nationwide = 1, 
+							'Nationwide', 
+							(
+								SELECT GROUP_CONCAT(DISTINCT y.bc_name SEPARATOR ', ')
+								FROM coupon_bc_tbl x
+								INNER JOIN chooks_delivery_db.bc_tbl y ON x.bc_id = y.bc_id AND y.bc_name <> 'CDI'
+								WHERE x.coupon_id = c.coupon_id
+							)
+						) AS coupon_scope
+					FROM coupon_transaction_header_tbl a
+					INNER JOIN coupon_transaction_details_tbl b ON a.coupon_transaction_header_id = b.coupon_transaction_header_id
+					INNER JOIN coupon_tbl c ON b.coupon_id = c.coupon_id
+					WHERE a.coupon_transaction_header_status = 1
+					AND a.is_advance_order = 1
+					GROUP BY a.coupon_transaction_header_id
+				) AS sub
+				WHERE coupon_qty > 0";
+		$data['advance_orders']          	= $this->main->get_query($qry);
+
+		$data['top_nav']     				= $this->load->view('fix/top_nav_content', $data, TRUE);
+		$data['controller']					= $this->controller;
+		$data['access_type']				= str_replace('-', '_', $this->controller);
+		
+		$dynamic_content 					= 'coupon/product_coupon_content';
+        $data['content']     				= $this->load->view($dynamic_content, $data, TRUE);
         $this->load->view('approver/templates', $data);
     }
 
@@ -1943,6 +2007,8 @@ class Approver extends CI_Controller {
 		if($_SERVER['REQUEST_METHOD'] == 'POST'){
             $coupon_transaction_header_id = clean_data(decode($this->input->post('id')));
 
+			$status = 5;
+
             if (empty($coupon_transaction_header_id)) {
                 $alert_message = $this->alert_template('Transaction Header ID is Required', false);
                 $this->session->set_flashdata('message', $alert_message);
@@ -1956,15 +2022,16 @@ class Approver extends CI_Controller {
                 redirect($_SERVER['HTTP_REFERER']);
             }
 
-            if ($check_id['info']->coupon_transaction_header_status == 1) {
+            if ($check_id['info']->coupon_transaction_header_status == $status) {
                 $alert_message = $this->alert_template('Transaction Header is already Approve', false);
                 $this->session->set_flashdata('message', $alert_message);
                 redirect($_SERVER['HTTP_REFERER']);
             }
 
-			$this->_validate_attachment('#nav-first-approved');
 
-			if(in_array($check_id['info']->coupon_cat_id, paid_category())){
+			if(in_array($check_id['info']->coupon_cat_id, paid_category()) && $check_id['info']->is_advance_order == 0){
+				$this->_validate_attachment('#nav-first-approved');
+
                 $coupon_join         = [ 'coupon_tbl b' => 'b.coupon_id = a.coupon_id AND a.coupon_transaction_header_id = ' . $coupon_transaction_header_id ];
                 $transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join, TRUE);
 
@@ -1996,13 +2063,15 @@ class Approver extends CI_Controller {
             $this->db->trans_start();
 
 			$set       = [
-                'coupon_transaction_header_status' => 1,
+                'coupon_transaction_header_status' => $status,
                 'invoice_number'                   => $invoice_number,
                 'sap_doc_no'                       => $sap_doc_no,
             ];
 			$where     = ['coupon_transaction_header_id' => $coupon_transaction_header_id];
 			$result    = $this->main->update_data('coupon_transaction_header_tbl', $set, $where);
 			$action_id = ($check_id['info']->coupon_transaction_header_status == 0) ? 3 : 5 ;
+			
+			
             $this->_store_transaction_action_log($action_id, $coupon_transaction_header_id);
 
             if ($result == TRUE) {
@@ -2014,12 +2083,18 @@ class Approver extends CI_Controller {
                 $transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join);
                 foreach ($transaction_details as $row) {
                     $set    = [
-                        'coupon_status'  => 1,
+                        'coupon_status'  => $status,
                         'invoice_number' => $invoice_number,
                         'sap_doc_no'     => $sap_doc_no,
                     ];
                     $where  = ['coupon_id' => $row->coupon_id];
                     $result = $this->main->update_data('coupon_tbl', $set, $where);
+                    
+					$set    = [
+                        'survey_freebie_cal_status'  => $status
+                    ];
+                    $where  = ['coupon_id' => $row->coupon_id];
+                    $result = $this->main->update_data('survey_freebie_calendar_tbl', $set, $where);
                 }
 
                 if ($action_id == 5) {
@@ -2037,7 +2112,7 @@ class Approver extends CI_Controller {
                 $alert_message = $this->alert_template($message, FALSE);
             }else{
                 $this->db->trans_commit();
-                $message       = 'Transaction successfully Activated.';
+                $message       = 'Transaction successfully Approved.';
                 $alert_message = $this->alert_template($message, TRUE);
             }
             $this->session->set_flashdata('message', $alert_message);
@@ -2052,6 +2127,7 @@ class Approver extends CI_Controller {
 
 		if($_SERVER['REQUEST_METHOD'] == 'POST'){
             $coupon_transaction_header_id = clean_data(decode($this->input->post('id')));
+			$status = 5; //* FINANCE APPROVED
 
             if (empty($coupon_transaction_header_id)) {
                 $alert_message = $this->alert_template('Transaction Header ID is Required', false);
@@ -2068,7 +2144,7 @@ class Approver extends CI_Controller {
 
             
 			
-			if(in_array($check_id['info']->coupon_cat_id, paid_category())){
+			if(in_array($check_id['info']->coupon_cat_id, paid_category()) && $check_id['info']->is_advance_order == 0){
                 $coupon_join         = [ 'coupon_tbl b' => 'b.coupon_id = a.coupon_id AND a.coupon_transaction_header_id = ' . $coupon_transaction_header_id ];
                 $transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join, TRUE);
 
@@ -2100,7 +2176,7 @@ class Approver extends CI_Controller {
             $this->db->trans_start();
 
 			$set       = [
-                'coupon_transaction_header_status' => 1,
+                'coupon_transaction_header_status' => $status,
                 'invoice_number'                   => $invoice_number,
                 'sap_doc_no'                       => $sap_doc_no,
             ];
@@ -2120,12 +2196,18 @@ class Approver extends CI_Controller {
                 $transaction_details = $this->main->get_join('coupon_transaction_details_tbl a', $coupon_join);
                 foreach ($transaction_details as $row) {
                     $set    = [
-                        'coupon_status'  => 1,
+                        'coupon_status'  => $status,
                         'invoice_number' => $invoice_number,
                         'sap_doc_no'     => $sap_doc_no,
                     ];
                     $where  = ['coupon_id' => $row->coupon_id];
                     $result = $this->main->update_data('coupon_tbl', $set, $where);
+
+					$set    = [
+                        'survey_freebie_cal_status'  => $status
+                    ];
+                    $where  = ['coupon_id' => $row->coupon_id];
+                    $result = $this->main->update_data('survey_freebie_calendar_tbl', $set, $where);
                 }
 
                 if (isset($_FILES['attachment']) && $_FILES['attachment']['name'][0] != '') {

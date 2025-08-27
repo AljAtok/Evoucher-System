@@ -7,6 +7,8 @@
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/bootstrap.min.css')?>"/>
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/jquery.mCustomScrollbar.min.css')?>">
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/dataTables.bootstrap4.min.css')?>">
+		<link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/responsive.bootstrap4.min.css')?>">
+		<link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/fixedColumns.bootstrap4.min.css')?>">
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/select2.min.css')?>"/>
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/select2-bootstrap4.min.css')?>">
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/daterangepicker.css') ?>" />
@@ -110,6 +112,9 @@
         <script type="text/javascript" src="<?=base_url('assets/js/jquery.dataTables.min.js')?>"></script>
         <script type="text/javascript" src="<?=base_url('assets/js/dataTables.bootstrap4.min.js')?>"></script>
 
+		<script type="text/javascript" src="<?=base_url('assets/js/datatables.responsive.min.js')?>"></script>
+		<script type="text/javascript" src="<?=base_url('assets/js/dataTables.fixedColumns.min.js')?>"></script>
+
 		<script type="text/javascript" src="<?=base_url('assets/js/dataTables.buttons.min.js')?>"></script>
 		<script type="text/javascript" src="<?=base_url('assets/js/jszip.min.js')?>"></script>
 		<script type="text/javascript" src="<?=base_url('assets/js/buttons.html5.min.js')?>"></script>
@@ -129,7 +134,10 @@
 		<script src="<?=base_url()?>assets/js/circles.min.js"></script>
         
 		<script type="text/javascript" src="<?=base_url('assets/js/admin.js?v=4.0')?>"></script>
-		<script type="text/javascript" src="<?=base_url('assets/js/raffle.js?v=4.0')?>"></script>
+		<script type="text/javascript" src="<?=base_url('assets/js/adv-order.js?v=1.0')?>"></script>
+		<?php if($uri == 'raffle-draw'): ?>
+			<script type="text/javascript" src="<?=base_url('assets/js/raffle.js?v=4.0')?>"></script>
+		<?php endif; ?>
 
     </body>
 </html>

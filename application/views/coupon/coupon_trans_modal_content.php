@@ -3,7 +3,7 @@
 <?php endif; ?>
 
 <div class="table-responsive">
-    <table class="table table-striped table-condensed">
+    <table class="table table-striped table-condensed data-table">
         <thead>
             <tr>
                 <th scope="col">Business Center</th>
@@ -13,6 +13,8 @@
                 <th scope="col">Series No.</th>
 				<?php endif; ?>
                 <th scope="col">Code</th>
+                <th scope="col">Invoice Number</th>
+                <th scope="col">Document Number</th>
                 <th scope="col"><?=SEC_SYS_NAME?> Value</th>
                 <th scope="col"><?=SEC_SYS_NAME?> Regular Amount</th>
                 <th scope="col"><?=SEC_SYS_NAME?> Paid Amount</th>
@@ -33,13 +35,23 @@
         </thead>
         
         <tbody>
+			
             <?php foreach($trans_details as $row): 
-                    if($row->coupon_status == 1){
+                    $pdf    = '';
+                    $toggle = '';
+					$badge = '';
+                    if($row->coupon_status == 1 && $trans_header->coupon_transaction_header_status == 1){
+                        $pdf    = '<a href="' . base_url($row->coupon_pdf_path) . '" target="_blank" rel="noreferer"><i class="fas fa-file-pdf fa-lg"></i></a>';
                         $badge  = '<span class="badge badge-success">Approved</span>';
-                    }elseif($row->coupon_status == 0){
-                        $badge    = '<span class="badge badge-warning">Inactive</span>';
-                    }elseif($row->coupon_status == 2){
-                        $badge    = '<span class="badge badge-warning">Pending</span>';
+                        $toggle = '<a href="" class="toggle-active-coupon text-success" data-id="' . encode($row->coupon_id) . '"><span class="fas fa-toggle-on fa-2x"></span></a>';
+                    }elseif($row->coupon_status == 0 || $trans_header->coupon_transaction_header_status == 0){
+                        $badge  = '<span class="badge badge-warning">Inactive</span>';
+                    }elseif($row->coupon_status == 2 || $trans_header->coupon_transaction_header_status == 2){
+                        $badge  = '<span class="badge badge-warning">Pending</span>';
+                    }elseif($row->coupon_status == 4 || $trans_header->coupon_transaction_header_status == 4){
+                        $badge  = '<span class="badge badge-success">Approved</span>';
+                    }elseif($row->coupon_status == 5 || $trans_header->coupon_transaction_header_status == 5){
+                        $badge  = '<span class="badge badge-success">Approved</span>';
                     }
                 ?>
             <tr>
@@ -49,7 +61,9 @@
 				<?php if($min_series && $max_series): ?>
                 <td><?= $row->series_number ?></td>
 				<?php endif; ?>
-                <td><strong><?= $row->coupon_code ?></strong></td>
+                <td><?= $row->coupon_code ?></td>
+                <td><?= $row->invoice_number ?></td>
+                <td><?= $row->sap_doc_no_2 ? $row->sap_doc_no.';<br>'.$row->sap_doc_no_2: $row->sap_doc_no ?></td>
                 <td><?= $row->coupon_amount ?></td>
                 <td><?= $row->coupon_regular_value ?></td>
                 <td><?= $row->coupon_value ?></td>
@@ -65,8 +79,21 @@
                 <td><?= $row->coupon_holder_address ?></td>
                 <td><?= $row->coupon_holder_tin ?></td>
                 <td><?= $badge ?></td>
-                <td>
-                    <a href="<?= base_url($row->coupon_pdf_path) ?>" target="_blank" rel="noreferer"><i class="fas fa-file-pdf fa-lg"></i></a>
+
+                <td class="text-center">
+                    <div class="d-flex d-inline">
+                        <?php
+							$params = [
+								'access_type' 		=> $controller,
+								'coupon_id'			=> $row->coupon_id,
+								'coupon_pdf_path' 	=> $row->coupon_pdf_path,
+								'coupon_status'		=> $row->coupon_status,
+								'is_advance_order'	=> $row->is_advance_order
+							];
+							echo $actions = modal_actions($params);
+							
+						?>
+                    </div>
                 </td>
             </tr>
             <?php endforeach;?>

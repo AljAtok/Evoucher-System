@@ -3,7 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Main_model extends CI_Model {
 
-	public function get_data($tbl, $where=null, $row=FALSE, $select=null, $order=FALSE){
+	public function get_data($tbl, $where=null, $row=FALSE, $select=null, $order=FALSE, $limit=0){
 
 		if($where != null){
 			$this->db->where($where);
@@ -15,6 +15,10 @@ class Main_model extends CI_Model {
 
 		if($order != FALSE){
 			$this->db->order_by($order);
+		}
+
+		if ($limit) {
+			$this->db->limit($limit);
 		}
 
 		$query = $this->db->get($tbl);
