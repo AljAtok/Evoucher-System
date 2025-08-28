@@ -16,6 +16,7 @@
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/datepicker.min.css') ?>" />
 		<link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/buttons.dataTables.min.css')?>" />
         <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/admin.css?v=2.7')?>">
+        <link rel="stylesheet" type="text/css" href="<?=base_url('assets/css/side-bar.css?v=3.0')?>">
 
         <title><?=SYS_NAME?> System - <?=$title?></title>
     </head>
