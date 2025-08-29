@@ -2,7 +2,7 @@ $(document).ready(function () {
 	// Ensure DataTables responsive recalculation on tab show
 
 	$(document).on("contextmenu", function (e) {
-		e.preventDefault();
+		// e.preventDefault();
 	});
 
 	$(window).resize(function (e) {
@@ -16,7 +16,7 @@ $(document).ready(function () {
 			if (!$.fn.DataTable.isDataTable($table)) {
 				load_normal_datatables($table);
 			}
-			$table.DataTable().columns.adjust().draw();
+			$table.DataTable().columns.adjust();
 		}
 	});
 
@@ -37,11 +37,7 @@ $(document).ready(function () {
 			var table = $table.DataTable();
 			table.on("search.dt", function () {
 				setTimeout(function () {
-					if (table.responsive) {
-						table.responsive.recalc();
-					}
 					table.columns.adjust();
-					table.draw();
 				}, 100);
 			});
 
@@ -64,12 +60,8 @@ $(document).ready(function () {
 			var table = $table.DataTable();
 			table.on("search.dt", function () {
 				setTimeout(function () {
-					if (table.responsive) {
-						table.responsive.recalc();
-					}
 					table.columns.adjust();
-					table.draw();
-				}, 100);
+				}, 50);
 			});
 
 			table.on("destroy.dt", function () {
@@ -90,14 +82,10 @@ $(document).ready(function () {
 		var table = $tabTable.DataTable();
 
 		table.on("search.dt", function () {
-			// Force responsive recalculation and column adjustment
+			// Only adjust columns without full redraw to preserve expand/collapse functionality
 			setTimeout(function () {
-				if (table.responsive) {
-					table.responsive.recalc();
-				}
 				table.columns.adjust();
-				table.draw();
-			}, 100);
+			}, 50);
 		});
 
 		// Clean up event handlers on DataTable destroy
