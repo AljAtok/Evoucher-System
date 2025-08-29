@@ -2,7 +2,7 @@ $(document).ready(function () {
 	// Ensure DataTables responsive recalculation on tab show
 
 	$(document).on("contextmenu", function (e) {
-		// e.preventDefault();
+		e.preventDefault();
 	});
 
 	$(window).resize(function (e) {
