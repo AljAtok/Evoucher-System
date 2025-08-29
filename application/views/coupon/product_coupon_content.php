@@ -20,13 +20,23 @@
 					<?php endif; ?>
 					<div class="ml-auto d-flex">
 						<div class="dropdown mr-2">
+							<?php
+							// Determine selected order type from URL segment or GET param
+							$cat_selected = NULL;
+							$segments = $this->uri->segment_array();
+							if (isset($segments[4])) {
+								$cat_selected = $segments[4];
+							}
+							$dynamic_segment = !empty($cat_selected) && is_numeric(decode($cat_selected)) ? '/' . $cat_selected : '';
+							?>
+
 							<button class="btn btn-light btn-sm dropdown-toggle" type="button" id="orderTypeMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 								<?=$order_type; ?>
 							</button>
 							<div class="dropdown-menu dropdown-menu-right shadow-lg" aria-labelledby="orderTypeMenu1">
-								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon')?>" data-value="normal">Normal Orders</a>
-								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'.encode(1))?>" data-value="advance">Advance Orders</a>
-								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'.encode(2))?>" data-value="issue_on_advance">Issued from Advance Orders</a>
+								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'.encode(0).$dynamic_segment)?>" data-value="normal">Normal Orders</a>
+								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'.encode(1).$dynamic_segment)?>" data-value="advance">Advance Orders</a>
+								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'.encode(2).$dynamic_segment)?>" data-value="issue_on_advance">Issued from Advance Orders</a>
 							</div>
 						</div>
 						<?php if(!empty($category_menu) && $filter_category): ?>

@@ -2,10 +2,10 @@ $(document).ready(function () {
 	// Ensure DataTables responsive recalculation on tab show
 
 	$(document).on("contextmenu", function (e) {
-		e.preventDefault();
+		// e.preventDefault();
 	});
 
-	$('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
+	$(window).resize(function (e) {
 		var target = $(e.target).attr("href");
 		var $table = $(target).find(".data-table").first();
 
@@ -20,6 +20,37 @@ $(document).ready(function () {
 		}
 	});
 
+	$('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
+		var target = $(e.target).attr("href");
+		var $table = $(target).find(".data-table").first();
+
+		if ($table.length) {
+			if ($.fn.DataTable.isDataTable($table)) {
+				$table.DataTable().destroy();
+			}
+			if (!$.fn.DataTable.isDataTable($table)) {
+				load_normal_datatables($table);
+			}
+			$table.DataTable().columns.adjust().draw();
+
+			// Add search handler for non-tab tables
+			var table = $table.DataTable();
+			table.on("search.dt", function () {
+				setTimeout(function () {
+					if (table.responsive) {
+						table.responsive.recalc();
+					}
+					table.columns.adjust();
+					table.draw();
+				}, 100);
+			});
+
+			table.on("destroy.dt", function () {
+				table.off("search.dt");
+			});
+		}
+	});
+
 	// Initialize .data-table tables NOT inside a tab
 	$(".data-table").each(function () {
 		var $table = $(this);
@@ -28,6 +59,22 @@ $(document).ready(function () {
 				$table.DataTable().destroy();
 			}
 			load_normal_datatables($table);
+
+			// Add search handler for non-tab tables
+			var table = $table.DataTable();
+			table.on("search.dt", function () {
+				setTimeout(function () {
+					if (table.responsive) {
+						table.responsive.recalc();
+					}
+					table.columns.adjust();
+					table.draw();
+				}, 100);
+			});
+
+			table.on("destroy.dt", function () {
+				table.off("search.dt");
+			});
 		}
 	});
 	// Initialize .data-table in the active tab
@@ -38,6 +85,25 @@ $(document).ready(function () {
 		}
 		load_normal_datatables($tabTable);
 		$tabTable.DataTable().columns.adjust().draw();
+
+		// Auto-resize DataTable columns on search
+		var table = $tabTable.DataTable();
+
+		table.on("search.dt", function () {
+			// Force responsive recalculation and column adjustment
+			setTimeout(function () {
+				if (table.responsive) {
+					table.responsive.recalc();
+				}
+				table.columns.adjust();
+				table.draw();
+			}, 100);
+		});
+
+		// Clean up event handlers on DataTable destroy
+		table.on("destroy.dt", function () {
+			table.off("search.dt");
+		});
 	}
 
 	const baseUrl = $("#base_url").val();
