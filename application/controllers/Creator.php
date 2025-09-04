@@ -165,7 +165,8 @@ class Creator extends CI_Controller {
 		$data['active_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 1 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
         $data['inactive_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 0 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
 
-        $data['products']    				= $this->main->get_join("{$parent_db}.product_sale_tbl a", $join_salable);
+        // $data['products']    				= $this->main->get_join("{$parent_db}.product_sale_tbl a", $join_salable);
+        $data['products']    				= [];
         $data['brand']       				= $this->main->get_data("{$parent_db}.brand_tbl", ['brand_status' => 1]);
         $data['bc']          				= $this->main->get_data("{$parent_db}.bc_tbl", ['bc_status' => 1]);
         $data['coupon_type'] 				= $this->main->get_data('coupon_type_tbl', ['coupon_type_status' => 1]);
