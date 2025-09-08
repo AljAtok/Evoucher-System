@@ -45,11 +45,25 @@
 							<button class="btn btn-light btn-sm dropdown-toggle" type="button" id="orderTypeMenu2" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 								<?php
 								$display_name = $category_name == '' ? 'All Categories' : htmlspecialchars($category_name);
-								if (mb_strlen($display_name) > 13) {
-									$display_name = mb_substr($display_name, 0, 13) . '...';
-								}
-								echo ucwords(strtolower($display_name));
+								// Default display name
+								$final_display_name = ucwords(strtolower($display_name));
 								?>
+								<span id="categoryDisplayName"><?= $final_display_name ?></span>
+								<script>
+								(function() {
+									var name = <?= json_encode($final_display_name) ?>;
+									var el = document.getElementById('categoryDisplayName');
+									function updateName() {
+										if (window.innerWidth < 576 && name.length > 13) {
+											el.textContent = name.substring(0, 13) + '...';
+										} else {
+											el.textContent = name;
+										}
+									}
+									updateName();
+									window.addEventListener('resize', updateName);
+								})();
+								</script>
 							</button>
 							<div class="dropdown-menu dropdown-menu-right shadow-lg" aria-labelledby="orderTypeMenu2">
 							<?php
