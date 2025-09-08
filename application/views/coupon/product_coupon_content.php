@@ -34,6 +34,7 @@
 								<?=$order_type; ?>
 							</button>
 							<div class="dropdown-menu dropdown-menu-right shadow-lg" aria-labelledby="orderTypeMenu1">
+								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'.encode(-1).$dynamic_segment)?>" data-value="normal">All Orders</a>
 								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'.encode(0).$dynamic_segment)?>" data-value="normal">Normal Orders</a>
 								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'.encode(1).$dynamic_segment)?>" data-value="advance">Advance Orders</a>
 								<a class="dropdown-item" href="<?=base_url($controller.'/product-coupon/'.encode(2).$dynamic_segment)?>" data-value="issue_on_advance">Issued from Advance Orders</a>
@@ -58,7 +59,7 @@
 							if (isset($segments[3])) {
 								$order_type_selected = $segments[3];
 							} else {
-								$order_type_selected = encode(0);
+								$order_type_selected = encode(-1);
 							}
 
 							?>
@@ -134,7 +135,7 @@
 										<td><?= $row->coupon_transaction_header_id ?></td>
 										<td><?= $row->coupon_transaction_header_name ?></td>
 										<td><?= $row->customer_name ?></td>
-										<?php if (!empty($row->parent_trans)): ?>
+										<?php if ($parent_id): ?>
 											<td><?= $row->parent_trans ?></td>
 										<?php endif; ?>
 										<td><?= $row->coupon_cat_name ?></td>
@@ -206,7 +207,7 @@
                                         <td><?= $row->coupon_transaction_header_id ?></td>
                                         <td><?= $row->coupon_transaction_header_name ?></td>
                                         <td><?= $row->customer_name ?></td>
-										<?php if (!empty($row->parent_trans)): ?>
+										<?php if ($parent_id): ?>
                                         <td><?= $row->parent_trans ?></td>
                                         <?php endif; ?>
                                         <td><?= $row->coupon_cat_name ?></td>
@@ -281,7 +282,7 @@
 										<td><?= $row->coupon_transaction_header_id ?></td>
 										<td><?= $row->coupon_transaction_header_name ?></td>
 										<td><?= $row->customer_name ?></td>
-										<?php if (!empty($row->parent_trans)): ?>
+										<?php if ($parent_id): ?>
 										<td><?= $row->parent_trans ?></td>
 										<?php endif; ?>
 										<td><?= $row->coupon_cat_name ?></td>
@@ -360,7 +361,7 @@
                                         <td><?= $row->coupon_transaction_header_id ?></td>
                                         <td><?= $row->coupon_transaction_header_name ?></td>
                                         <td><?= $row->customer_name ?></td>
-                                        <?php if (!empty($row->parent_trans)): ?>
+                                        <?php if ($parent_id): ?>
                                         <td><?= $row->parent_trans ?></td>
                                         <?php endif; ?>
                                         <td><?= $row->coupon_cat_name ?></td>
@@ -430,7 +431,7 @@
                                     <tr>
                                         <td><?= $row->coupon_transaction_header_name ?></td>
                                         <td><?= $row->customer_name ?></td>
-										<?php if (!empty($row->parent_trans)): ?>
+										<?php if ($parent_id): ?>
                                         <td><?= $row->parent_trans ?></td>
                                         <?php endif; ?>
                                         <td><?= $row->coupon_cat_name ?></td>

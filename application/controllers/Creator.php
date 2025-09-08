@@ -121,6 +121,7 @@ class Creator extends CI_Controller {
 		
 		$parent_id = FALSE;
 		$order_type = 'Normal Orders';
+		$no_order_type = FALSE;
 		if(!empty($is_advance_order)){
 			$is_advance_order = decode($is_advance_order);
 			if($is_advance_order == 1){
@@ -129,11 +130,16 @@ class Creator extends CI_Controller {
 				$order_type = 'Issued from Advance Orders';
 				$parent_id = TRUE;
 				$is_advance_order = 0;
-			} else {
+			} elseif($is_advance_order == 0){
 				$is_advance_order = 0;
+			} else {
+				$no_order_type = TRUE;
+				$order_type = 'All Orders';
 			}
 		} else {
 			$is_advance_order = 0;
+			$no_order_type = TRUE;
+			$order_type = 'All Orders';
 		}
 
 		if($parent_id){
@@ -159,11 +165,25 @@ class Creator extends CI_Controller {
         $user_id        = clean_data(decode($info['user_id']));
         $category_where = "a.coupon_cat_id IN (SELECT z.coupon_cat_id FROM user_access_tbl z WHERE z.user_id = {$user_id} AND user_access_status = 1)";
 
-        $data['pending_coupon_trans']  		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 2 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
-		$data['first_appr_coupon_trans'] 	= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 4 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
-		$data['approved_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 5 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
-		$data['active_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 1 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
-        $data['inactive_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, 'a.coupon_transaction_header_status = 0 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter);
+		$trans_filter = 'a.coupon_transaction_header_status = 2 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter;
+		if($no_order_type) $trans_filter = 'a.coupon_transaction_header_status = 2 AND ' . $category_where;
+        $data['pending_coupon_trans']  		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, $trans_filter);
+		
+		$trans_filter = 'a.coupon_transaction_header_status = 4 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter;
+		if($no_order_type) $trans_filter = 'a.coupon_transaction_header_status = 4 AND ' . $category_where;
+		$data['first_appr_coupon_trans'] 	= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, $trans_filter);
+
+		$trans_filter = 'a.coupon_transaction_header_status = 5 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter;
+		if($no_order_type) $trans_filter = 'a.coupon_transaction_header_status = 5 AND ' . $category_where;
+		$data['approved_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, $trans_filter);
+
+		$trans_filter = 'a.coupon_transaction_header_status = 1 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter;
+		if($no_order_type) $trans_filter = 'a.coupon_transaction_header_status = 1 AND ' . $category_where;
+		$data['active_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, $trans_filter);
+
+        $trans_filter = 'a.coupon_transaction_header_status = 0 AND a.is_advance_order = '.$is_advance_order.' AND ' . $category_where . $parent_filter;
+        if($no_order_type) $trans_filter = 'a.coupon_transaction_header_status = 0 AND ' . $category_where;
+        $data['inactive_coupon_trans'] 		= $this->main->get_join('coupon_transaction_header_tbl a', $join_coupon, FALSE, 'coupon_transaction_header_added DESC', FALSE, $coupon_trans_select, $trans_filter);
 
         // $data['products']    				= $this->main->get_join("{$parent_db}.product_sale_tbl a", $join_salable);
         $data['products']    				= [];
