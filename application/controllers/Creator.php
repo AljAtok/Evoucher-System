@@ -2047,7 +2047,7 @@ class Creator extends CI_Controller {
 			$coupon_code_y_arr = [20];
 
 			$qr_x_arr = [376.5];
-			$qr_y_arr = [86.5];
+			$qr_y_arr = [82.5];
 			
 			$scope_x_arr = [286.5];
 			$scope_y_arr = [199];
@@ -2079,7 +2079,7 @@ class Creator extends CI_Controller {
 			}
 			$pdf->SetFont('helvetica', '', 32);
 			$pdf->Text($coupon_code_x, $coupon_code_y, $coupon->coupon_code);
-			$pdf->write2DBarcode($coupon->coupon_code, 'QRCODE,H', $qr_x, $qr_y, 34, 34, $style, 'N');
+			$pdf->write2DBarcode($coupon->coupon_code, 'QRCODE,H', $qr_x, $qr_y, 35, 35, $style, 'N');
 			$pdf->SetFont('helvetica', '', 14);
 			$pdf->Text($scope_x, $scope_y, $bcs);
 
@@ -2551,22 +2551,26 @@ class Creator extends CI_Controller {
         $parent_db = $GLOBALS['parent_db'];
 		$one_pager = TRUE;
 
-		$image_x_arr = [40, 441.89];
+		$image_x_arr = [40, 446.89];
 		$image_y_arr = [17.5, 207.5, 397.5]; // 190 diff
 
 		// $coupon_code_x_arr = [340, 741.89];
-		$coupon_code_x_arr = [338, 739.89];
 		// $coupon_code_y_arr = [30, 220, 410]; // 12.5 diff
-		$coupon_code_y_arr = [30.5, 220.5, 410.5]; // 12.5 diff
+		$coupon_code_x_arr = [333, 738.89];
+		$coupon_code_y_arr = [29.5, 219.5, 409.5]; // 12.5 diff
 
-		$qr_x_arr = [349.5, 751.39];
-		$qr_y_arr = [85, 275, 465]; // 67.5 diff
+		// $qr_x_arr = [349.5, 751.39];
+		// $qr_y_arr = [85, 275, 465]; // 67.5 diff
+		$qr_x_arr = [345.5, 752.39];
+		$qr_y_arr = [78, 268, 458];
 		
-		$scope_x_arr = [275, 676.89];
 		// $scope_y_arr = [180, 370, 560]; // 162.5 diff
-		$scope_y_arr = [179, 369, 559]; // 162.5 diff
+		// $scope_x_arr = [275, 676.89];
+		// $scope_y_arr = [179, 369, 559]; // 162.5 diff
+		$scope_x_arr = [272, 679.89];
+		$scope_y_arr = [177, 367, 557];
 
-		$series_no_x_arr = [48, 449.89];
+		$series_no_x_arr = [48, 454.89];
 		$series_no_y_arr = [25, 215, 405];
 
 		$pdf        = new Pdf('P', 'mm', 'A4', true, 'UTF-8', false);
@@ -2718,14 +2722,16 @@ class Creator extends CI_Controller {
 
 				$pdf->setJPEGQuality(100);
 				// $pdf->SetLineStyle(array('width' => 1, 'cap' => 'butt', 'join' => 'miter', 'dash' => 0, 'color' => array(252,238,33)));
-				$pdf->Image($design, $image_x, $image_y, 360, 180, 'JPG', '', '', true, 150, '', false, false, 0, false, false, false);
+				$image_width = 355;
+				$image_height = 178;
+				$pdf->Image($design, $image_x, $image_y, $image_width, $image_height, 'JPG', '', '', true, 150, '', false, false, 0, false, false, false);
 				if($coupon->series_number){
 					$pdf->SetFont('helvetica', '', 16);
 					$pdf->Text($series_no_x, $series_no_y, $coupon->series_number);
 				}
 				$pdf->SetFont('helvetica', '', 26);
 				$pdf->Text($coupon_code_x, $coupon_code_y, $coupon->coupon_code);
-				$pdf->write2DBarcode($coupon->coupon_code, 'QRCODE,H', $qr_x, $qr_y, 30, 30, $style, 'N');
+				$pdf->write2DBarcode($coupon->coupon_code, 'QRCODE,H', $qr_x, $qr_y, 31, 31, $style, 'N');
 				$pdf->SetFont('helvetica', '', 12);
 				$pdf->Text($scope_x, $scope_y, $bcs);
 				
