@@ -1708,7 +1708,7 @@ class Creator extends CI_Controller {
 
         $this->load->library('Pdf');
 
-        $select = "*,
+        $select = "a.*, a1.*, c.series_number, d.coupon_for_printing,
         IF(a.is_nationwide = 1, 
             'NATIONWIDE', 
             (SELECT GROUP_CONCAT(x.bc_name SEPARATOR ', ') FROM coupon_bc_tbl z JOIN {$parent_db}.bc_tbl x ON z.bc_id = x.bc_id WHERE z.coupon_id = a.coupon_id AND coupon_bc_status = 1)) AS 'bcs',
@@ -1719,7 +1719,8 @@ class Creator extends CI_Controller {
 
         $join = array(
 			'coupon_category_tbl a1' => 'a.coupon_cat_id = a1.coupon_cat_id AND a1.coupon_cat_status = 1 AND a.coupon_id = ' . $coupon_id,
-			'coupon_transaction_details_tbl c' => 'c.coupon_id = a.coupon_id'
+			'coupon_transaction_details_tbl c' => 'c.coupon_id = a.coupon_id',
+			'coupon_transaction_header_tbl d' => 'd.coupon_transaction_header_id = c.coupon_transaction_header_id'
 		);
 
         $coupon      = $this->main->get_join('coupon_tbl a', $join, TRUE, FALSE, FALSE, $select);
@@ -2008,52 +2009,81 @@ class Creator extends CI_Controller {
             $pdf->Image($back_design, 7, $y, 200, 80, 'JPG', '', '', true, 150, '', false, false, 1, false, false, false);
 
 	    }elseif($coupon->coupon_cat_id == 5){ //* ROASTED CHICKEN ECOUPON
-	    	if($coupon->coupon_type_id == 1){
+			if($coupon->coupon_type_id == 1){
 
-		        if ($coupon->coupon_value_type_id == 1) { // PERCENTAGE
-		            $value = $coupon->coupon_amount.'%';
-		            if ($coupon->coupon_amount == 100) {
-		                $additional_details = 'AMOUNT : 1 ' . $coupon->products;
-		            } else {
-		                $additional_details = 'AMOUNT : ' . $value . ' Discount';
-		            }
-		        } else if ($coupon->coupon_value_type_id == 2) { // FLAT AMOUNT
-		            $value = 'P' . $coupon->coupon_amount;
-		            $additional_details = 'AMOUNT : ' . $value . ' Discount';
-		        }
-		    }elseif($coupon->coupon_type_id == 2){
-		    	if ($coupon->coupon_value_type_id == 1) { // PERCENTAGE
-		            $value = $coupon->coupon_amount.'%';
-		            if ($coupon->coupon_amount == 100) {
-		                $additional_details = 'AMOUNT : 1 ' . $coupon->products;
-		            } else {
-		                $additional_details = 'AMOUNT : ' . $value . ' Discount for' . $coupon->products;
-		            }
-		        } else if ($coupon->coupon_value_type_id == 2) { // FLAT AMOUNT
-		            $value = 'P' . $coupon->coupon_amount;
-		            $additional_details = 'AMOUNT : ' . $value . ' Discount for ' . $coupon->products;
-		        }
-		    }
+				if ($coupon->coupon_value_type_id == 1) { // PERCENTAGE
+					$value = $coupon->coupon_amount.'%';
+					if ($coupon->coupon_amount == 100) {
+						$additional_details = 'AMOUNT : 1 ' . $coupon->products;
+					} else {
+						$additional_details = 'AMOUNT : ' . $value . ' Discount';
+					}
+				} else if ($coupon->coupon_value_type_id == 2) { // FLAT AMOUNT
+					$value = 'P' . $coupon->coupon_amount;
+					$additional_details = 'AMOUNT : ' . $value . ' Discount';
+				}
+			}elseif($coupon->coupon_type_id == 2){
+				if ($coupon->coupon_value_type_id == 1) { // PERCENTAGE
+					$value = $coupon->coupon_amount.'%';
+					if ($coupon->coupon_amount == 100) {
+						$additional_details = 'AMOUNT : 1 ' . $coupon->products;
+					} else {
+						$additional_details = 'AMOUNT : ' . $value . ' Discount for' . $coupon->products;
+					}
+				} else if ($coupon->coupon_value_type_id == 2) { // FLAT AMOUNT
+					$value = 'P' . $coupon->coupon_amount;
+					$additional_details = 'AMOUNT : ' . $value . ' Discount for ' . $coupon->products;
+				}
+			}
+			if($coupon->coupon_for_printing == 1){
+				$design      = $coupon->coupon_cat_design;
+				$custom_layout = [ 442, 226 ];
+	
+				$image_w = 432;
+				$image_h = 216;
+	
+				$image_x_arr = [5];
+				$image_y_arr = [5];
+	
+				$coupon_code_x_arr = [360];
+				$coupon_code_y_arr = [20];
+	
+				$qr_x_arr = [376.5];
+				$qr_y_arr = [82.5];
+				
+				$scope_x_arr = [286.5];
+				$scope_y_arr = [199];
+	
+				$series_no_x_arr = [15];
+				$series_no_y_arr = [14];
 
-			$custom_layout = [ 442, 226 ];
+				$coupon_code_text_font = [32];
+				$qr_code_size = [35];
+			} else {
+				$design      = $coupon->coupon_cat_digital_design;
+				$custom_layout = [ 442, 226 ];
+	
+				$image_w = 432;
+				$image_h = 216;
+	
+				$image_x_arr = [5];
+				$image_y_arr = [5];
+	
+				$coupon_code_x_arr = [165];
+				$coupon_code_y_arr = [88.5];
+	
+				$qr_x_arr = [163];
+				$qr_y_arr = [33];
+				
+				$scope_x_arr = [288];
+				$scope_y_arr = [201];
+	
+				$series_no_x_arr = [15];
+				$series_no_y_arr = [14];
 
-			$image_w = 432;
-			$image_h = 216;
-
-			$image_x_arr = [5];
-			$image_y_arr = [5];
-
-			$coupon_code_x_arr = [360];
-			$coupon_code_y_arr = [20];
-
-			$qr_x_arr = [376.5];
-			$qr_y_arr = [82.5];
-			
-			$scope_x_arr = [286.5];
-			$scope_y_arr = [199];
-
-			$series_no_x_arr = [15];
-			$series_no_y_arr = [14];
+				$coupon_code_text_font = [27];
+				$qr_code_size = [51];
+			}
 
 			$image_x = $image_x_arr[0];
 			$coupon_code_x = $coupon_code_x_arr[0];
@@ -2067,22 +2097,23 @@ class Creator extends CI_Controller {
 			$scope_y = $scope_y_arr[0];
 			$series_no_y = $series_no_y_arr[0];
 
-			
+			$coupon_code_text_font = $coupon_code_text_font[0];
+			$qr_code_size = $qr_code_size[0];
+
 			$pdf->AddPage('L', $custom_layout);
 
-		    $pdf->setJPEGQuality(100);
+			$pdf->setJPEGQuality(100);
 			// $pdf->SetLineStyle(array('width' => 1, 'cap' => 'butt', 'join' => 'miter', 'dash' => 0, 'color' => array(252,238,33)));
 			$pdf->Image($design, $image_x, $image_y, $image_w, $image_h, 'JPG', '', '', true, 150, '', false, false, 0, true, false, false);
 			if($coupon->series_number){
 				$pdf->SetFont('helvetica', '', 20);
 				$pdf->Text($series_no_x, $series_no_y, $coupon->series_number);
 			}
-			$pdf->SetFont('helvetica', '', 32);
+			$pdf->SetFont('helvetica', '', $coupon_code_text_font);
 			$pdf->Text($coupon_code_x, $coupon_code_y, $coupon->coupon_code);
-			$pdf->write2DBarcode($coupon->coupon_code, 'QRCODE,H', $qr_x, $qr_y, 35, 35, $style, 'N');
+			$pdf->write2DBarcode($coupon->coupon_code, 'QRCODE,H', $qr_x, $qr_y, $qr_code_size, $qr_code_size, $style, 'N');
 			$pdf->SetFont('helvetica', '', 14);
 			$pdf->Text($scope_x, $scope_y, $bcs);
-
 			
 	    }
 
