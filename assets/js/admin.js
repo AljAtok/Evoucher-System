@@ -306,7 +306,8 @@ $(document).ready(function () {
 			});
 		});
 
-		var element_select = '[name="upd_customer_id"]';
+		// var element_select = '[name="upd_customer_id"]';
+		var element_select = ".upd-customer-id";
 		var $el = $(element_select);
 
 		if (!$el.prop("disabled")) {
@@ -365,7 +366,8 @@ $(document).ready(function () {
 		}
 		// ...rest of your function code...
 
-		var element_select = '[name="customer_id"]';
+		// var element_select = '[name="customer_id"]';
+		var element_select = ".customer-id";
 		if ($(element_select).data("select2")) {
 			$(element_select).select2("destroy");
 			$(element_select).select2({
@@ -773,6 +775,29 @@ $(document).ready(function () {
 						.find(".modal-body")
 						.html(parse_response["html"]);
 					$("#modal-edit-transaction-coupon").modal({ show: true });
+					initCouponElements();
+					formEvents();
+				} else {
+					console.log("Error please contact your administrator.");
+				}
+			},
+		});
+	});
+
+	$(document).on("click", ".duplicate-transaction-coupon", function (e) {
+		e.preventDefault();
+		let id = $(this).attr("data-id");
+		$.ajax({
+			url: baseUrl + "/modal-duplicate-transaction-coupon/" + id,
+			data: { id: id },
+			method: "POST",
+			success: function (response) {
+				let parse_response = JSON.parse(response);
+				if (parse_response["result"] == 1) {
+					$("#modal-duplicate-transaction-coupon")
+						.find(".modal-body")
+						.html(parse_response["html"]);
+					$("#modal-duplicate-transaction-coupon").modal({ show: true });
 					initCouponElements();
 					formEvents();
 				} else {

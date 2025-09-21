@@ -592,6 +592,7 @@ if ( ! function_exists('encode')){
 						($export_zipped_jpg_imgs ? dropdown_item($export_zipped_jpg_imgs, 'Export Zipped JPG Images') : '') .
 						($coupon_cat_id != '2' ? dropdown_item($generic_btns['attachment_button'], 'View Attachments') : '') .
 						dropdown_item($generic_btns['edit_button'], 'Edit Transaction') .
+						dropdown_item($generic_btns['duplicate_button'], 'Duplicate Transaction') .
 						dropdown_item($generic_btns['cancel_button'], 'Cancel Transaction') .
 						dropdown_item($generic_btns['view_details_button'], 'View Details') .
 						dropdown_item($generic_btns['export_trans_details_btn'], 'Export Transaction Details') .
@@ -1055,6 +1056,10 @@ if ( ! function_exists('encode')){
 			'edit_button' => '
 				<a class="btn btn-light btn-sm edit-transaction-coupon text-info" href="#" data-id="' . encode($coupon_transaction_header_id) . '" title="Edit Transaction">
 					<i class="fas fa-pencil-alt fa-lg"></i>
+				</a>',
+			'duplicate_button' => '
+				<a class="btn btn-light btn-sm duplicate-transaction-coupon text-success" href="#" data-id="' . encode($coupon_transaction_header_id) . '" title="Duplicate Transaction">
+					<i class="fas fa-copy fa-lg"></i>
 				</a>',
 			'cancel_button' => '
 				<a class="btn btn-light btn-sm cancel-transaction text-danger" href="#" data-id="' . encode($coupon_transaction_header_id) . '" title="Cancel Transaction">

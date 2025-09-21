@@ -550,7 +550,7 @@
 									</div>
 									<div class="form-group" id="customer-select-parent">
 										<label>Customer : *</label>
-										<select name="customer_id" class="form-control form-control-sm" required>
+										<select name="customer_id" class="form-control form-control-sm customer-id" required>
 											<option value="">Select Customer</option>
 											<?php foreach($customer as $row):?>
 												<option value="<?=encode($row->customer_id)?>"><?=$row->customer_name?></option>
@@ -837,6 +837,27 @@
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
                                 <button type="submit" class="btn btn-main btn-sm">Update</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+			<div class="modal fade" id="modal-duplicate-transaction-coupon" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h6 class="modal-title" id="exampleModalLabel"><strong>Duplicate Transaction <?=SEC_SYS_NAME?></strong></h6>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <form method="POST" action="<?=base_url($controller.'/store-product-coupon')?>" class="needs-validation product-transaction" enctype="multipart/form-data" novalidate >
+                            <div class="modal-body">
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-main btn-sm">Duplicate</button>
                             </div>
                         </form>
                     </div>

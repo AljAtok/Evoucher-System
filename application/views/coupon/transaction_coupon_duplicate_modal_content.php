@@ -1,5 +1,6 @@
-    <input type="hidden" name="id" id="id" value="<?= encode($transaction->coupon_transaction_header_id) ?>">
-    <input type="hidden" name="order_type" id="order_type" value="<?= encode($transaction->is_advance_order) ?>">
+    <!-- <input type="hidden" name="id" id="id" value="<?= encode($transaction->coupon_transaction_header_id) ?>"> -->
+    <!-- <input type="hidden" name="order_type" id="order_type" value="<?= encode($transaction->is_advance_order) ?>"> -->
+    <input type="hidden" name="order_type" id="order_type" value="<?=encode('normal')?>">
 
 	<div class="form-group">
 		<div class="form-check">
@@ -16,48 +17,70 @@
 	</div>
 
 	<div class="form-group">
-        <label for="">Name: <?= $coupon->coupon_name ?></label>
+        <label for="">Name : *</label>
+		<input type="text" name="name" class="form-control form-control-sm" placeholder="" value="<?= $coupon->coupon_name ?>" required>
     </div> 
     <div class="form-group">
-        <label for=""><?=SEC_SYS_NAME?> Qty: <?= $transaction->coupon_qty ?></label>
+        <label for=""><?=SEC_SYS_NAME?> Qty : *</label>
+		<input type="number" name="product_coupon_qty" class="form-control form-control-sm" placeholder="" value="<?= $transaction->coupon_qty ?>" required>
     </div>
     <div class="form-group">
-        <label>Scope Masking: <?=$transaction->coupon_scope_masking?></label>
-    </div>
-    <div class="form-group">
-        <label>Business Center: <?=$coupon->bc?></label>
-    </div>
-    <div class="form-group">
-        <label>Brand: <?=$coupon->brands?></label>
-    </div>
-    <div class="form-group">
-        <label><?=SEC_SYS_NAME?> Value Type: <?=$coupon->coupon_value_type_name?></label>
+        <label>Business Center : *</label>
+		<select name="bc[]" class="form-control form-control-sm coupon-bc" multiple="multiple" required>
+			<?=$bc_select?>
+		</select>
     </div>
 	<div class="form-group">
-        <label for=""><?=SEC_SYS_NAME?> Value: <?= $coupon->coupon_amount ?></label>
+        <label>Scope Masking : *</label>
+		<input type="text" name="scope_masking" maxlength="20" class="form-control form-control-sm" placeholder="Applicable if scope masking is needed (for multiple BCs)" value="<?=$transaction->coupon_scope_masking?>">
     </div>
     <div class="form-group">
-        <label>Products: <?= $coupon->products?></label>
+        <label>Brand : *</label>
+		<select name="brand[]" class="form-control form-control-sm coupon-brand" required>
+			<?=$brand_select?>
+		</select>
+    </div>
+    <div class="form-group">
+        <label><?=SEC_SYS_NAME?> Value Type : *</label>
+		<select name="value_type" class="form-control form-control-sm coupon-value-type" required>
+			<?=$value_type_select?>
+		</select>
+    </div>
+	<div class="form-group">
+        <label for=""><?=SEC_SYS_NAME?> Value : *</label>
+		<input type="number" name="amount" class="form-control form-control-sm" placeholder="" value="<?= intval($coupon->coupon_amount) ?>" min="1" max="100" required>
+    </div>
+    <div class="form-group">
+        <label>Products : *</label>
+		<select name="product[]" class="form-control form-control-sm coupon-product" required>
+			<?=$products_select?>
+		</select>
     </div>
     <div class="form-group">
         <label>Category: <?= $coupon->coupon_cat_name?></label>
+		<input type="hidden" name="category" class="form-control form-control-sm" placeholder="" value="<?=encode($coupon->coupon_cat_id)?>" required>
     </div>
     
 	<?php if(!$transaction->is_advance_order): ?>
 		<div class="form-group">
 			<label>Holder Type:<?= $coupon->coupon_holder_type_name ?></label>
+			<input type="hidden" name="holder_type" class="form-control form-control-sm" placeholder="" value="<?=encode($coupon->coupon_holder_type_id)?>" required>
 		</div>
 		<div class="form-group">
 			<label for="">Holder Name: <?= $coupon->coupon_holder_name ?></label>
+			<input type="hidden" name="holder_name" class="form-control form-control-sm" placeholder="" value="<?= $coupon->coupon_holder_name ?>" required>
 		</div> 
 		<div class="form-group">
 			<label for="">Holder Email: <?= $coupon->coupon_holder_email ?></label>
+			<input type="hidden" name="holder_email" class="form-control form-control-sm" placeholder="" value="<?= $coupon->coupon_holder_email ?>" required>
 		</div> 
 		<div class="form-group">
 			<label for="">Holder Contact: <?= $coupon->coupon_holder_contact ?></label>
+			<input type="hidden" name="holder_contact" class="form-control form-control-sm" placeholder="" value="<?= $coupon->coupon_holder_contact ?>" required>
 		</div> 
 		<div class="form-group">
 			<label for="">Requestor's Company: <?= $coupon->company_name ?></label>
+			<input type="hidden" name="company_id" class="form-control form-control-sm" placeholder="" value="<?=encode($coupon->company_id)?>" required>
 		</div>
 	<?php endif; ?>
 
@@ -78,7 +101,7 @@
 		<?php if ($coupon->coupon_cat_id == '1') : ?>
 			<div class="form-group" id="customer-select-parent2">
 				<label>Customer : *</label>
-				<select name="upd_customer_id" class="form-control form-control-sm upd-customer-id" required>
+				<select name="customer_id" class="form-control form-control-sm upd-customer-id" required>
 					<?=$customer_select?>
 				</select>
 			</div>
@@ -105,13 +128,13 @@
 				</div>
 				<div class="form-group" id="customer-select-parent2">
 					<label>Customer : *</label>
-					<select name="upd_customer_id" class="form-control form-control-sm upd-customer-id" required>
+					<select name="customer_id" class="form-control form-control-sm upd-customer-id" required>
 						<?=$customer_select?>
 					</select>
 				</div>
 				<label for="">Attachment:</label><br>
 				<div class="custom-file mb-3">
-					<input type="file" class="custom-file-input" accept="image/png, image/jpeg, image/jpg, document/pdf" data-show-upload="false" data-show-caption="true" name="attachment[]" multiple>
+					<input type="file" class="custom-file-input" accept="image/png, image/jpeg, image/jpg, document/pdf" data-show-upload="false" data-show-caption="true" name="attachment[]" multiple required>
 					<label class="custom-file-label" for="attachment[]">Choose file...</label>
 				</div>
 			<?php else : ?>
@@ -140,7 +163,7 @@
 				
 				<div class="form-group" id="customer-select-parent2">
 					<label>Customer : *</label>
-					<select name="upd_customer_id" class="form-control form-control-sm upd-customer-id" <?=$transaction->is_advance_order ? 'disabled' : 'required'?>>
+					<select name="customer_id" class="form-control form-control-sm upd-customer-id" <?=$transaction->is_advance_order ? 'disabled' : 'required'?>>
 						<?=$customer_select?>
 					</select>
 					<?php if($transaction->is_advance_order): ?>
@@ -150,14 +173,24 @@
 				</div>
 				<label for="">Attachment:</label><br>
 				<div class="custom-file mb-3">
-					<input type="file" class="custom-file-input" accept="image/png, image/jpeg, image/jpg, document/pdf" data-show-upload="false" data-show-caption="true" name="attachment[]" multiple>
+					<input type="file" class="custom-file-input" accept="image/png, image/jpeg, image/jpg, document/pdf" data-show-upload="false" data-show-caption="true" name="attachment[]" multiple required>
 					<label class="custom-file-label" for="attachment[]">Choose file...</label>
 				</div>
 			<?php endif; ?>
 		<?php else : ?>
+			<div class="form-group">
+				<div class="form-check">
+					<input type="checkbox" name="allocate_to_each_bc" class="form-check-input" id="allocate_to_each_bc" value="1" <?= $transaction->allocation_count > 0 ? 'checked' : '' ?>>
+					<label class="form-check-label" for="allocate_to_each_bc">Allocate Qty to BC selected</label>
+				</div>
+			</div>
+			<div class="form-group">
+				<label for="">Allocation Qty per BC :</label>
+				<input type="number" name="allocation_count" class="form-control form-control-sm" value="<?=$transaction->allocation_count > 0 ? $transaction->allocation_count : ''?>" placeholder="">
+			</div>
 			<div class="form-group" id="customer-select-parent2">
 				<label>Customer : *</label>
-				<select name="upd_customer_id" class="form-control form-control-sm upd-customer-id" required>
+				<select name="customer_id" class="form-control form-control-sm upd-customer-id" required>
 					<?=$customer_select?>
 				</select>
 			</div>
@@ -165,7 +198,7 @@
 			
 				<label for="">Attachment:</label><br>
 				<div class="custom-file mb-3">
-					<input type="file" class="custom-file-input" accept="image/png, image/jpeg, image/jpg, document/pdf" data-show-upload="false" data-show-caption="true" name="attachment[]" multiple>
+					<input type="file" class="custom-file-input" accept="image/png, image/jpeg, image/jpg, document/pdf" data-show-upload="false" data-show-caption="true" name="attachment[]" multiple required>
 					<label class="custom-file-label" for="attachment[]">Choose file...</label>
 				</div>
 			</div>

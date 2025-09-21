@@ -488,7 +488,7 @@ class Creator extends CI_Controller {
 
     }
 
-    private function _store_coupon_trans_header($coupon_name, $category, $start, $end, $payment_status, $invoice_number, $product_coupon_qty=0, $voucher_value=0, $for_printing=0, $scope_masking="", $display_exp=0, $for_image_conv=0, $payment_terms=0, $payment_type_id=1, $customer_id=0, $order_type="", $parent_transaction_header_id=NULL)
+    private function _store_coupon_trans_header($coupon_name, $category, $start, $end, $payment_status, $invoice_number, $product_coupon_qty=0, $voucher_value=0, $for_printing=0, $scope_masking="", $display_exp=0, $for_image_conv=0, $payment_terms=0, $payment_type_id=1, $customer_id=0, $order_type="", $parent_transaction_header_id=NULL, $allocation_count=0)
     {
     	$info    = $this->_require_login();
     	$user_id = decode($info['user_id']);
@@ -516,6 +516,7 @@ class Creator extends CI_Controller {
         	'parent_transaction_header_id'				=> $parent_transaction_header_id,
         	'coupon_transaction_header_added'  			=> date_now(),
         	'coupon_pdf_archived'  						=> 0,
+			'allocation_count'							=> $allocation_count,
         	'coupon_transaction_header_status' 			=> 2
         ];
         return $this->main->insert_data('coupon_transaction_header_tbl', $data, TRUE);
@@ -788,6 +789,7 @@ class Creator extends CI_Controller {
         $holder_email       = $this->input->post('holder_email') ? clean_data($this->input->post('holder_email')) : '';
         $holder_contact     = $this->input->post('holder_contact') ? clean_data($this->input->post('holder_contact')) : '';
         $voucher_value      = ($this->input->post('voucher-value') != NULL)? clean_data($this->input->post('voucher-value')) : 0;
+		$allocation_count      = ($this->input->post('allocation_count') != NULL)? clean_data($this->input->post('allocation_count')) : 0;
         $holder_address     = ($this->input->post('address') != NULL) ? clean_data($this->input->post('address')) : '';
         $holder_tin         = ($this->input->post('tin') != NULL) ? clean_data($this->input->post('tin')) : '';
 		$payment_terms      = ($this->input->post('payment_terms') != NULL) ? clean_data($this->input->post('payment_terms')) : 0;
@@ -846,7 +848,7 @@ class Creator extends CI_Controller {
 		$payment_status     = ($payment_type_id == 4 || $payment_type_id == 7) ? 0 : 1; //* UNPAID WHEN CREDIT & ADVANCE ORDER PAYMENT TYPE
 
         $this->db->trans_start();
-        $trans_result = $this->_store_coupon_trans_header($name, $category, $start, $end, $payment_status, $invoice_number, $product_coupon_qty, $voucher_value, $for_printing, $scope_masking, $display_exp, $for_image_conv, $payment_terms, $payment_type_id, $customer_id, $order_type, $parent_transaction_header_id);
+        $trans_result = $this->_store_coupon_trans_header($name, $category, $start, $end, $payment_status, $invoice_number, $product_coupon_qty, $voucher_value, $for_printing, $scope_masking, $display_exp, $for_image_conv, $payment_terms, $payment_type_id, $customer_id, $order_type, $parent_transaction_header_id, $allocation_count);
         if ($trans_result) {
             $this->_store_transaction_action_log(1, $trans_result['id']);
             if (isset($_FILES['attachment']) && $_FILES['attachment']['name'][0] != '') {
@@ -1295,6 +1297,12 @@ class Creator extends CI_Controller {
         $payment_type_id    = ($this->input->post('payment_type_id') != NULL) ? clean_data(decode($this->input->post('payment_type_id'))) : 1;
 		$payment_status     = ($payment_type_id == 4 || $payment_type_id == 7) ? 0 : 1; //* UNPAID WHEN CREDIT PAYMENT TYPE
 		$customer_id    	= ($this->input->post('upd_customer_id') != NULL) ? clean_data(decode($this->input->post('upd_customer_id'))) : NULL;
+
+		$voucher_value      = ($this->input->post('voucher-value') != NULL)? clean_data($this->input->post('voucher-value')) : 0;
+		$voucher_regular_value      = ($this->input->post('voucher-regular-value') != NULL)? clean_data($this->input->post('voucher-regular-value')) : 0;
+		$holder_address     = ($this->input->post('address') != NULL) ? clean_data($this->input->post('address')) : '';
+        $holder_tin         = ($this->input->post('tin') != NULL) ? clean_data($this->input->post('tin')) : '';
+
 		if($customer_id){
 			$customer_name = "";
 			if(!is_numeric($customer_id)){
@@ -1376,9 +1384,13 @@ class Creator extends CI_Controller {
             foreach ($coupons as $row) {
                 $coupon_id = $row->coupon_id;
                 $set = [
-                    'coupon_start'          => $start,
-                    'coupon_end'            => $end,
+                    'coupon_start'          	=> $start,
+                    'coupon_end'            	=> $end,
                     'payment_status'            => $payment_status,
+					'coupon_value'          	=> $voucher_value,
+					'coupon_regular_value'  	=> $voucher_regular_value,
+					'coupon_holder_address' 	=> $holder_address,
+					'coupon_holder_tin'     	=> $holder_tin,
                 ];
 
 				if($customer_id){
@@ -1615,6 +1627,96 @@ class Creator extends CI_Controller {
 			$data['payment_fields'] = $this->_get_payment_details_fields($check_transaction['info']->payment_type_id, $check_transaction['info']->payment_type_id, $check_transaction['info']->payment_terms, $payment_select);
 
 			$dynamic_content = 'coupon/transaction_coupon_edit_modal_content';
+            $html = $this->load->view($dynamic_content, $data, TRUE);
+
+            $result = [
+                'result' => TRUE,
+                'html'   => $html
+            ];
+        } else {
+            $result = [
+                'result' => FALSE
+            ];
+        }
+        
+        echo json_encode($result);
+    }
+	
+	public function modal_duplicate_transaction_coupon($id)
+    {
+        $info                = $this->_require_login();
+        $id                  = clean_data(decode($id));
+        $parent_db           = $GLOBALS['parent_db'];
+        $where               = ['coupon_transaction_header_id' => $id];
+        $coupon_trans_select = '*, (SELECT COUNT(*) FROM coupon_transaction_details_tbl z WHERE a.coupon_transaction_header_id = z.coupon_transaction_header_id ) as `coupon_qty`';
+        $check_transaction   = $this->main->check_data('coupon_transaction_header_tbl a', $where, TRUE, $coupon_trans_select);
+        if ($check_transaction['result']) {
+            $coupon_join = [
+                'coupon_value_type_tbl b'          => 'b.coupon_value_type_id = a.coupon_value_type_id',
+                'coupon_holder_type_tbl c'         => 'c.coupon_holder_type_id = a.coupon_holder_type_id',
+                'coupon_transaction_details_tbl d' => "d.coupon_id = a.coupon_id AND d.coupon_transaction_header_id = {$id}",
+                'coupon_category_tbl e'            => 'e.coupon_cat_id = a.coupon_cat_id',
+                'company_tbl f'            => 'f.company_id = a.company_id',
+            ];
+
+            $coupon_select = "*,
+            (SELECT GROUP_CONCAT(x.brand_name SEPARATOR ', ') FROM coupon_brand_tbl z JOIN {$parent_db}.brand_tbl x ON z.brand_id = x.brand_id WHERE z.coupon_id = a.coupon_id AND coupon_brand_status = 1) AS brands,
+            IF(a.is_nationwide = 1, 
+                'Nationwide', 
+                (SELECT GROUP_CONCAT(x.bc_name SEPARATOR ', ') FROM coupon_bc_tbl z JOIN {$parent_db}.bc_tbl x ON z.bc_id = x.bc_id WHERE z.coupon_id = a.coupon_id AND coupon_bc_status = 1)) AS 'bc',
+            IF(a.is_orc = 2, 'All Products',
+            IF(a.is_orc = 1, 
+                CONCAT_WS(', ', 'ORC',(SELECT GROUP_CONCAT(x.prod_sale_name SEPARATOR ', ') FROM coupon_prod_sale_tbl z JOIN {$parent_db}.product_sale_tbl x ON z.prod_sale_id = x.prod_sale_id WHERE z.coupon_id = a.coupon_id AND coupon_prod_sale_status = 1 AND z.prod_sale_id NOT IN (SELECT y.prod_sale_id FROM {$parent_db}.orc_list_tbl y WHERE y.orc_list_status = 1))), 
+                (SELECT GROUP_CONCAT(x.prod_sale_name SEPARATOR ', ') FROM coupon_prod_sale_tbl z JOIN {$parent_db}.product_sale_tbl x ON z.prod_sale_id = x.prod_sale_id WHERE z.coupon_id = a.coupon_id AND coupon_prod_sale_status = 1))) AS 'products'";
+
+            $coupon = $this->main->get_join('coupon_tbl a', $coupon_join, TRUE, FALSE, FALSE, $coupon_select, false, false, false);
+
+            $join_salable = [
+                "{$parent_db}.product_tbl b" => 'a.prod_id = b.prod_id',
+                "{$parent_db}.unit_tbl c"    => 'a.unit_id = c.unit_id',
+                "{$parent_db}.unit_tbl d"    => 'a.2nd_uom = d.unit_id'
+            ];
+
+            $data['products']    = $this->main->get_join("{$parent_db}.product_sale_tbl a", $join_salable);
+            $data['coupon']      = $coupon; 
+            $data['transaction'] = $check_transaction['info'];
+
+            
+			$join_trans_dtls = [
+				'coupon_transaction_details_tbl c' => 'a.coupon_id = c.coupon_id'
+			];
+			$filter = ['a.coupon_prod_sale_status' => 1, 'c.coupon_transaction_header_id' => $id];
+			$data['coupon_prod']  = array_column($this->main->get_join("coupon_prod_sale_tbl a", $join_trans_dtls, FALSE, FALSE, 'prod_sale_id', 'prod_sale_id', $filter), 'prod_sale_id');
+
+			$filter = ['a.coupon_brand_status' => 1, 'c.coupon_transaction_header_id' => $id];
+            $data['coupon_brand'] = array_column($this->main->get_join("coupon_brand_tbl a", $join_trans_dtls, FALSE, FALSE, 'brand_id', 'brand_id', $filter), 'brand_id');
+            
+			$filter = ['a.coupon_bc_status' => 1, 'c.coupon_transaction_header_id' => $id];
+            $data['coupon_bc']    = array_column($this->main->get_join("coupon_bc_tbl a", $join_trans_dtls, FALSE, FALSE, 'bc_id', 'bc_id', $filter), 'bc_id');
+
+            $holder_type_where = (!in_array($check_transaction['info']->coupon_cat_id, paid_category())) ? 'coupon_holder_type_status = 1 AND coupon_holder_type_id != 4' : 'coupon_holder_type_status = 1';
+            $data['holder_type']  = $this->main->get_data('coupon_holder_type_tbl a', $holder_type_where);
+            $data['category']     = $this->main->get_data('coupon_category_tbl a', ['coupon_cat_status' => 1]);
+            $data['brand']        = $this->main->get_data("{$parent_db}.brand_tbl", ['brand_status' => 1]);
+            $data['bc']           = $this->main->get_data("{$parent_db}.bc_tbl", ['bc_status' => 1]);
+            $data['coupon_type']  = $this->main->get_data('coupon_type_tbl', ['coupon_type_status' => 1]);
+            $data['value_type']   = $this->main->get_data('coupon_value_type_tbl a', ['coupon_value_type_status' => 1]);
+            
+			$data['user_id'] = decode($info['user_id']);
+			$data['bc_select'] = $this->_get_bc_selection($coupon->is_nationwide, $data['coupon_bc']);
+			// pretty_dump($data['bc_select']);
+			$data['brand_select'] = $this->_get_brands_selection($data['coupon_brand']);
+			$data['value_type_select'] = $this->_get_value_types_selection([$coupon->coupon_value_type_id]);
+			$data['products_select'] = $this->_get_products_selection($coupon->is_orc, $data['coupon_prod']);
+
+            // $data['category_select'] = $this->_get_categories_selection($data['category']);
+            // $data['holder_type_select'] = $this->_get_holder_types_selection($data['holder_type']);
+
+            $data['customer_select'] = $this->_get_customers_selection($check_transaction['info']->customer_id, $check_transaction['info']->is_advance_order);
+            $payment_select = $this->_get_payment_types_selection($check_transaction['info']->payment_type_id, NULL, $check_transaction['info']->is_advance_order);
+			$data['payment_fields'] = $this->_get_payment_details_fields($check_transaction['info']->payment_type_id, $check_transaction['info']->payment_type_id, $check_transaction['info']->payment_terms, $payment_select);
+
+            $dynamic_content = 'coupon/transaction_coupon_duplicate_modal_content';
             $html = $this->load->view($dynamic_content, $data, TRUE);
 
             $result = [
@@ -4704,6 +4806,79 @@ class Creator extends CI_Controller {
 			redirect('creator');
 		}
     }
+	
+	public function _get_products_selection($is_orc=NULL, $product_id=NULL){
+		$parent_db = $GLOBALS['parent_db'];
+		$filter = ['prod_sale_status_id' => 1];
+		$join_salable = [
+			"{$parent_db}.product_tbl b" => 'a.prod_id = b.prod_id AND a.prod_id IN (1, 7, 21, 27) and a.company_id = 2 and a.prod_sale_status_id = 1',
+			// "{$parent_db}.product_tbl b" => 'a.prod_id = b.prod_id',
+        ];
+
+		$product_list         = $this->main->get_join("{$parent_db}.product_sale_tbl a", $join_salable);
+		$product_select = '<option value="">Select Product</option>';
+		if($is_orc == 1) $selected = "selected";
+		else $selected = "";
+		$product_select .= '<option '.$selected.' value="orc">ORC</option>';
+		foreach ($product_list as $row) {
+			$selected = '';
+			if($is_orc != 1 && is_array($product_id) && in_array($row->prod_sale_id, $product_id)) $selected = 'selected';
+			$product_select .= '<option '.$selected.' value="'.encode($row->prod_sale_id).'">'.$row->prod_sale_code.' - '.$row->prod_sale_name.'</option>';
+		}
+		return $product_select;
+	}
+	
+	public function _get_bc_selection($is_nationwide=NULL, $bc_id=NULL){
+		$parent_db = $GLOBALS['parent_db'];
+		$filter = ['bc_status' => 1, 'bc_id <' => 22];
+		// if($bc_id){
+		// 	if (is_array($bc_id)) {
+		// 		$filter = ['bc_id IN (' . implode(',', $bc_id) . ') and bc_status = 1' ];
+		// 	} else {
+		// 		$filter = ['bc_id' => $bc_id];
+		// 	}
+		// }
+		$bc_list         = $this->main->get_data("{$parent_db}.bc_tbl", $filter, false, 'bc_id, bc_name');
+		// return $bc_id;
+		$bc_select = '<option value="">Select Business Center</option>';
+		if($is_nationwide == 1) $selected = "selected";
+		else $selected = "";
+		$bc_select .= '<option '.$selected.' value="nationwide">NATIONWIDE</option>';
+		foreach ($bc_list as $row) {
+			$selected = '';
+			if($is_nationwide != 1 && is_array($bc_id) && in_array($row->bc_id, $bc_id)) $selected = 'selected';
+			$bc_select .= '<option '.$selected.' value="'.encode($row->bc_id).'">'.$row->bc_name.'</option>';
+		}
+		return $bc_select;
+	}
+
+	public function _get_value_types_selection($value_type_id=NULL){
+		
+		$filter = ['coupon_value_type_status' => 1];
+
+		$value_type_list         = $this->main->get_data("coupon_value_type_tbl", $filter);
+		$value_type_select = '<option value="">Select Value Type</option>';
+		foreach ($value_type_list as $row) {
+			$selected = '';
+			if(is_array($value_type_id) && in_array($row->coupon_value_type_id, $value_type_id)) $selected = 'selected';
+			$value_type_select .= '<option '.$selected.' value="'.encode($row->coupon_value_type_id).'">'.$row->coupon_value_type_name.'</option>';
+		}
+		return $value_type_select;
+	}
+
+	public function _get_brands_selection($brand_id=NULL){
+		$parent_db = $GLOBALS['parent_db'];
+		$filter = ['brand_status' => 1];
+		
+		$brand_list         = $this->main->get_data("{$parent_db}.brand_tbl", $filter);
+		$brand_select = '<option value="">Select Brand</option>';
+		foreach ($brand_list as $row) {
+			$selected = '';
+			if(is_array($brand_id) && in_array($row->brand_id, $brand_id)) $selected = 'selected';
+			$brand_select .= '<option '.$selected.' value="'.encode($row->brand_id).'">'.$row->brand_name.'</option>';
+		}
+		return $brand_select;
+	}
 
 	public function _get_customers_selection($customer_id=NULL, $is_advance_order=0){
 		
