@@ -81,7 +81,7 @@
                     </li>
 
 					<li>
-                        <a href="<?=base_url('admin/redeem-coupon-emp')?>"><strong><span class="fas fa-fw fa-stamp"></span> Redeem <?=SEC_SYS_NAME?></strong></a>
+                        <a href="<?=base_url('admin/redeem-coupon-emp')?>"><strong><span class="fas fa-fw fa-stamp"></span> Redeem Chooksie <?=SEC_SYS_NAME?></strong></a>
                     </li>
 
 					<li>

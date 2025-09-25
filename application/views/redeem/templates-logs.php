@@ -39,7 +39,7 @@
 
                 <ul class="list-unstyled components" id="main-menu">
                     <li>
-                        <a href="<?=base_url('redeem/redeem-coupon-emp')?>"><strong><span class="fas fa-fw fa-stamp"></span> Redeem <?=SEC_SYS_NAME?></strong></a>
+                        <a href="<?=base_url('redeem/redeem-coupon-emp')?>"><strong><span class="fas fa-fw fa-stamp"></span> Redeem Chooksie <?=SEC_SYS_NAME?></strong></a>
                     </li>
                     <li>
                         <a href="<?=base_url('redeem/redeem-logs')?>"><strong><span class="far fa-fw fa-file-alt"></span> Redeem Logs</strong></a>
