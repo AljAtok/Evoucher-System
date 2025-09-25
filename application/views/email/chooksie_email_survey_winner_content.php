@@ -85,7 +85,7 @@
 																					<br>
 																					Use the code <strong><?=$coupon_code?></strong> to claim your prize,
 																					<br>
-																					you may claim your prize until (<?=date('F d, Y', strtotime($coupon_end))?>) at Chooks-to Go, Inc. office - <?=$bc_address?>.
+																					you may claim your prize until (<?=date('F d, Y', strtotime($coupon_end))?>) at <?=ucwords(strtolower($bc_name))?> Chooks-to Go, Inc. office - <?=$bc_address?>.
 																				
 																				</span>
 																			</p>
@@ -103,6 +103,8 @@
 																				3. Present your valid ID, Purchase Receipt and this email confirmation at the <?=$bc_name?> Business Center.
 																				<br>
 																				4. ID presented MUST be the same with the name in the raffle entry and email confirmation.
+																				<br>
+																				5. Please wait for a confirmation text/email/mail for the schedule of claiming of prizes.
 																				
 																				
 																				</span>
