@@ -71,6 +71,6 @@
         <script type="text/javascript" src="<?=base_url('assets/js/notifications.min.js')?>"></script>
         <script type="text/javascript" src="<?=base_url('assets/js/bootstrap-datepicker.min.js')?>"></script>
         <script type="text/javascript" src="<?=base_url('assets/js/admin.js?v=4.0')?>"></script>
-		<script type="text/javascript" src="<?=base_url('assets/js/raffle.js?v=4.0')?>"></script>
+		<script type="text/javascript" src="<?=base_url('assets/js/raffle.js?v=4.1')?>"></script>
     </body>
 </html>
