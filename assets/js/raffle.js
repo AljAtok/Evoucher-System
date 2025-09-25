@@ -587,6 +587,7 @@ async function renderTabs() {
 		[
 			{ label: "Ref. No.", key: "ref_no" },
 			{ label: "Name", key: "name" },
+			{ label: "Draw At", key: "winner_created_at" },
 			{ label: "Validated At", key: "validated_at" },
 		],
 		(row) =>
