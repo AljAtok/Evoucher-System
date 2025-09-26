@@ -772,8 +772,14 @@ class Raffle extends CI_Controller {
 		$check_form 							= $this->main->check_data("{$sibling_db}.form_tbl", ['form_id' => $form_id], TRUE);
 		$start_date								= $check_form['result'] ? $check_form['info']->start_date : date("Y-m-d H:i:s");
 		$end_date								= $check_form['result'] ? $check_form['info']->end_date : date("Y-m-d H:i:s");
+
 		if($limit_to_yesterday){
-			$end_date = date('Y-m-d 23:59:59', strtotime('-1 day'));
+			if($check_form['result'] && $check_form['info']->data_cutoff_date){
+				$end_date = $check_form['info']->data_cutoff_date;
+			} else {
+				// $end_date = date("Y-m-d H:i:s");
+				$end_date = date('Y-m-d 23:59:59', strtotime('-1 day'));
+			}
 		}
 
 		$get_participating_bcs 					= $this->main->get_data('survey_participating_bcs_tbl', ['form_id' => $form_id, 'survey_participating_bc_status' => 1]);
