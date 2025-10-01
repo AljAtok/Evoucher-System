@@ -16,7 +16,9 @@
 	</div>
 
 	<div class="form-group">
-        <label for="">Name: <?= $coupon->coupon_name ?></label>
+        
+		<label for="">Name : *</label>
+		<input type="text" name="name" class="form-control form-control-sm" placeholder="" value="<?= $coupon->coupon_name ?>" required>
     </div> 
     <div class="form-group">
         <label for=""><?=SEC_SYS_NAME?> Qty: <?= $transaction->coupon_qty ?></label>

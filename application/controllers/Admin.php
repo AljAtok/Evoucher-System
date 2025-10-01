@@ -2212,6 +2212,7 @@ class Admin extends CI_Controller {
 		$voucher_regular_value      = ($this->input->post('voucher-regular-value') != NULL)? clean_data($this->input->post('voucher-regular-value')) : 0;
 		$holder_address     = ($this->input->post('address') != NULL) ? clean_data($this->input->post('address')) : '';
         $holder_tin         = ($this->input->post('tin') != NULL) ? clean_data($this->input->post('tin')) : '';
+        $name         		= ($this->input->post('name') != NULL) ? clean_data($this->input->post('name')) : '';
 		
 		if($customer_id){
 			$customer_name = "";
@@ -2274,7 +2275,8 @@ class Admin extends CI_Controller {
             'payment_type_id'    				=> $payment_type_id,
             'payment_terms'    					=> $payment_terms,
             'payment_status'    				=> $payment_status,
-            'coupon_pdf_archived'    			=> 0
+            'coupon_pdf_archived'    			=> 0,
+            'coupon_transaction_header_name'   	=> strtoupper(trim($name)),
         ];
 		if($customer_id){
 			$set['customer_id']					= $customer_id;
@@ -2301,6 +2303,7 @@ class Admin extends CI_Controller {
 					'coupon_regular_value'  	=> $voucher_regular_value,
 					'coupon_holder_address' 	=> $holder_address,
 					'coupon_holder_tin'     	=> $holder_tin,
+					'coupon_name'          		=> strtoupper(trim($name)),
                 ];
 
 				if($customer_id){
