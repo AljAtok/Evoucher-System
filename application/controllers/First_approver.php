@@ -2073,7 +2073,7 @@ class First_approver extends CI_Controller {
                 $payment_type_id     =  0;
             }
 
-			$payment_status     = ($payment_type_id == 4) ? 0 : 1; //* UNPAID WHEN CREDIT PAYMENT TYPE
+			$payment_status     = ($payment_type_id == 4 || $payment_type_id == 7) ? 0 : 1; //* UNPAID WHEN CREDIT PAYMENT TYPE
 
             $this->db->trans_start();
 
