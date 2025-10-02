@@ -696,7 +696,7 @@ class Raffle extends CI_Controller {
 				$join = [
 					'coupon_prod_sale_tbl b' => 'a.coupon_id = b.coupon_id and b.coupon_prod_sale_status = 1',
 				];
-				$survey_ref = $this->main->get_join('survey_winners_tbl a', $join, TRUE, FALSE, FALSE, 'survey_ref_id, coupon_id, prod_sale_id, created_at', ['survey_winner_id' => $survey_winner_id]);
+				$survey_ref = $this->main->get_join('survey_winners_tbl a', $join, TRUE, FALSE, FALSE, 'survey_ref_id, a.coupon_id, prod_sale_id, created_at', ['survey_winner_id' => $survey_winner_id]);
 				$survey_ref_id = !empty($survey_ref) ? $survey_ref->survey_ref_id : null;
 				$response = [];
 				if (!empty($survey_ref_id)) {
