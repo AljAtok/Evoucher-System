@@ -11671,7 +11671,8 @@ class Admin extends CI_Controller {
 
 				//* GET THE WINNER
 				$join = [
-					'survey_reference_tbl b' => 'a.survey_ref_id = b.survey_ref_id'
+					'survey_reference_tbl b' => 'a.survey_ref_id = b.survey_ref_id',
+					'coupon_prod_sale_tbl c' => 'a.coupon_id = c.coupon_id and c.coupon_prod_sale_status = 1',
 				];
 				$where = [
 					'a.form_id' => 5,
@@ -11680,7 +11681,7 @@ class Admin extends CI_Controller {
 					'a.survey_winner_email' => '',
 					'a.survey_winner_validated' => 0
 				];
-				$select = 'a.survey_winner_id, a.survey_ref_id, b.name, RIGHT(ref_no, 9) AS ref_no';
+				$select = 'a.survey_winner_id, a.survey_ref_id, b.name, RIGHT(ref_no, 9) AS ref_no, c.prod_sale_id';
 				$order_by = 'a.survey_winner_id DESC';
 				$participants = $this->main->get_join('survey_winners_tbl a', $join, TRUE, $order_by, FALSE, $select, $where);
 	
@@ -11693,7 +11694,7 @@ class Admin extends CI_Controller {
 						"name" => $participants->name,
 						"ref_no" => $participants->ref_no
 					] : null,
-					'not_validated_winners_count' => $this->_get_not_validated_winner_count(date("Y-m-d")),
+					'not_validated_winners_count' => $this->_get_not_validated_winner_count(date("Y-m-d"), $participants->prod_sale_id),
 				];
 				$stat_header = $participants ? 200 : 404;
 	
@@ -11903,7 +11904,6 @@ class Admin extends CI_Controller {
 		$parent_db = $GLOBALS['parent_db'];
 		$error_msg = "Error! Please try again.";
 		$success_msg = "Success! Winner validated.";
-		$should_be_winner = 8;
 
 		if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 			// Accept JSON payload
@@ -11912,13 +11912,19 @@ class Admin extends CI_Controller {
 
 			$survey_winner_id = isset($data['id']) ? trim(clean_data($data['id'])) : null;
 			if(!empty($survey_winner_id)){
-				$survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id, created_at');
+				// $survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id, created_at');
+				$join = [
+					'coupon_prod_sale_tbl b' => 'a.coupon_id = b.coupon_id and b.coupon_prod_sale_status = 1',
+				];
+				$survey_ref = $this->main->get_join('survey_winners_tbl a', $join, TRUE, FALSE, FALSE, 'survey_ref_id, prod_sale_id, created_at', ['survey_winner_id' => $survey_winner_id]);
 				$survey_ref_id = !empty($survey_ref) ? $survey_ref->survey_ref_id : null;
 				$response = [];
 				if (!empty($survey_ref_id)) {
-					$winning_date = $survey_ref->created_at ?? null;
-					$winning_date = $winning_date ? date('Y-m-d', strtotime($winning_date)) : null;
-					$winner_count = $this->_get_validated_winner_count($winning_date);
+					$winning_date 		= $survey_ref->created_at ?? null;
+					$winning_date 		= $winning_date ? date('Y-m-d', strtotime($winning_date)) : null;
+					$prod_sale_id 		= $survey_ref->prod_sale_id ?? null;
+					$winner_count 		= $this->_get_validated_winner_count($winning_date, $prod_sale_id);
+					$should_be_winner 	= $this->_should_be_winner($winning_date, $prod_sale_id);
 					if($winner_count < $should_be_winner){
 						$send_winner_email = $this->email_survey_winner(5, $survey_ref_id);
 						if ($send_winner_email['result']) {
@@ -11929,7 +11935,7 @@ class Admin extends CI_Controller {
 							$success_msg = "";
 						}
 					} else {
-						$error_msg = "Validated winner limit reached for the draw date. Current validated winner(s): {$winner_count}.";
+						$error_msg = "Validated winner limit reached for the draw date and specific draw prize. Current validated winner(s): {$winner_count}.";
 						$success_msg = "";
 					}
 				} else {
@@ -12046,18 +12052,24 @@ class Admin extends CI_Controller {
 			// Accept JSON payload
 			$raw = file_get_contents("php://input");
 			$data = json_decode($raw, true);
-			$should_be_winner = 8;
+			// $should_be_winner = 8;
 
 			$survey_winner_id = isset($data['id']) ? trim(clean_data($data['id'])) : null;
 			$remarks = isset($data['remarks']) ? trim(clean_data($data['remarks'])) : null;
 			if(!empty($survey_winner_id)){
-				$survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id, coupon_id, created_at');
+				// $survey_ref = $this->main->get_data('survey_winners_tbl', ['survey_winner_id' => $survey_winner_id], true, 'survey_ref_id, coupon_id, created_at');
+				$join = [
+					'coupon_prod_sale_tbl b' => 'a.coupon_id = b.coupon_id and b.coupon_prod_sale_status = 1',
+				];
+				$survey_ref = $this->main->get_join('survey_winners_tbl a', $join, TRUE, FALSE, FALSE, 'survey_ref_id, coupon_id, prod_sale_id, created_at', ['survey_winner_id' => $survey_winner_id]);
 				$survey_ref_id = !empty($survey_ref) ? $survey_ref->survey_ref_id : null;
 				$response = [];
 				if (!empty($survey_ref_id)) {
-					$winning_date = $survey_ref->created_at ?? null;
-					$winning_date = $winning_date ? date('Y-m-d', strtotime($winning_date)) : null;
-					$winner_count = $this->_get_validated_winner_count($winning_date);
+					$winning_date 		= $survey_ref->created_at ?? null;
+					$winning_date 		= $winning_date ? date('Y-m-d', strtotime($winning_date)) : null;
+					$prod_sale_id 		= $survey_ref->prod_sale_id ?? null;
+					$winner_count 		= $this->_get_validated_winner_count($winning_date, $prod_sale_id);
+					$should_be_winner 	= $this->_should_be_winner($winning_date, $prod_sale_id);
 					if($winner_count >= $should_be_winner){
 						$set = [
 							'survey_winner_status' => 2,
@@ -12088,7 +12100,7 @@ class Admin extends CI_Controller {
 							}
 						}
 					} else {
-						$error_msg = "Undo is prohibited if the validated winners is less than {$should_be_winner}. Current validated winner(s): {$winner_count}.";
+						$error_msg = "Undo is prohibited if the validated winners is less than {$should_be_winner}. Current validated winner(s) for the draw date and specific draw prize: {$winner_count}.";
 						$success_msg = "";
 					}
 				} else {
@@ -12119,14 +12131,36 @@ class Admin extends CI_Controller {
 		exit;
 	}
 
-	private function _get_validated_winner_count($winning_date){
-		$survey_winner = $this->main->get_data('survey_winners_tbl', ['survey_winner_status' => 1, 'survey_winner_validated' => 1, 'DATE(created_at)' => $winning_date], true, 'COUNT(survey_winner_id) as winner_count');
+	private function _should_be_winner($winning_date, $prod_sale_id = null){
+		$where = [
+			'survey_draw_set_type' 			=> 1,
+			'DATE(survey_draw_date)' 		=> $winning_date,
+			'prod_sale_id' 					=> $prod_sale_id,
+			'survey_draw_set_status' 		=> 1
+		];
+		$get_should_be_winner = $this->main->get_data('survey_draw_settings_tbl a', $where, true, 'winner_count');
+
+		$should_be_winner_count = !empty($get_should_be_winner) ? $get_should_be_winner->winner_count : 0;
+
+		return $should_be_winner_count;
+	}
+
+	private function _get_validated_winner_count($winning_date, $prod_sale_id = null){
+		// $survey_winner = $this->main->get_data('survey_winners_tbl', ['survey_winner_status' => 1, 'survey_winner_validated' => 1, 'DATE(created_at)' => $winning_date], true, 'COUNT(survey_winner_id) as winner_count');
+		$join = [
+			'coupon_prod_sale_tbl b' => 'a.coupon_id = b.coupon_id and b.coupon_prod_sale_status = 1',
+		];
+		$survey_winner = $this->main->get_join('survey_winners_tbl a', $join, TRUE, FALSE, FALSE, 'COUNT(survey_winner_id) as winner_count', ['survey_winner_status' => 1, 'survey_winner_validated' => 1, 'DATE(created_at)' => $winning_date, 'b.prod_sale_id' => $prod_sale_id]);
 		$winner_count = !empty($survey_winner) ? $survey_winner->winner_count : 0;
 		return $winner_count;
 	}
 	
-	private function _get_not_validated_winner_count($winning_date){
-		$survey_winner = $this->main->get_data('survey_winners_tbl', ['survey_winner_status' => 1, 'survey_winner_validated' => 0, 'DATE(created_at)' => $winning_date], true, 'COUNT(survey_winner_id) as winner_count');
+	private function _get_not_validated_winner_count($winning_date, $prod_sale_id = null){
+		// $survey_winner = $this->main->get_data('survey_winners_tbl', ['survey_winner_status' => 1, 'survey_winner_validated' => 0, 'DATE(created_at)' => $winning_date], true, 'COUNT(survey_winner_id) as winner_count');
+		$join = [
+			'coupon_prod_sale_tbl b' => 'a.coupon_id = b.coupon_id and b.coupon_prod_sale_status = 1',
+		];
+		$survey_winner = $this->main->get_join('survey_winners_tbl a', $join, TRUE, FALSE, FALSE, 'COUNT(survey_winner_id) as winner_count', ['survey_winner_status' => 1, 'survey_winner_validated' => 0, 'DATE(created_at)' => $winning_date, 'b.prod_sale_id' => $prod_sale_id]);
 		$winner_count = !empty($survey_winner) ? $survey_winner->winner_count : 0;
 		return $winner_count;
 	}
