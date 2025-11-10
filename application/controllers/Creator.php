@@ -61,8 +61,10 @@ class Creator extends CI_Controller {
 
     public function redeem_coupon()
     {
-		show_404();
-        $data['title']   = 'Redeem '.SEC_SYS_NAME.'';
+		// show_404();
+		$info      = $this->_require_login();
+		$data['user_id']   = $info['user_id'];
+        $data['title']   = 'Verify '.SEC_SYS_NAME.'';
 		$data['top_nav']     = $this->load->view('fix/top_nav_content', $data, TRUE);
         $data['content'] = $this->load->view('creator/coupon/redeem_coupon_content', $data, TRUE);
         $this->load->view('creator/templates', $data);
@@ -3348,7 +3350,7 @@ class Creator extends CI_Controller {
         IF(a.is_orc = 1, 
             CONCAT_WS(', ', 'ORC',(SELECT GROUP_CONCAT(x.prod_sale_name SEPARATOR ', ') FROM coupon_prod_sale_tbl z JOIN {$parent_db}.product_sale_tbl x ON z.prod_sale_id = x.prod_sale_id WHERE z.coupon_id = a.coupon_id AND coupon_prod_sale_status = 1 AND z.prod_sale_id NOT IN (SELECT y.prod_sale_id FROM {$parent_db}.orc_list_tbl y WHERE y.orc_list_status = 1))), 
             (SELECT GROUP_CONCAT(x.prod_sale_name SEPARATOR ', ') FROM coupon_prod_sale_tbl z JOIN {$parent_db}.product_sale_tbl x ON z.prod_sale_id = x.prod_sale_id WHERE z.coupon_id = a.coupon_id AND coupon_prod_sale_status = 1))) AS 'products'"; */
-		$coupon_select = 'a.*, b.coupon_cat_name, d.coupon_scope_masking';
+		$coupon_select = 'a.*, b.coupon_cat_name, d.coupon_scope_masking, d.coupon_transaction_header_id, d.coupon_transaction_header_added';
         $coupon_join    = [
 			'coupon_category_tbl b' => 'b.coupon_cat_id = a.coupon_cat_id AND a.coupon_code = "' . $coupon_code .'" AND a.coupon_status = 1',
 			'coupon_transaction_details_tbl c' => 'a.coupon_id = c.coupon_id',
@@ -3436,7 +3438,17 @@ class Creator extends CI_Controller {
         echo json_encode($response_data);
         return;*/
 
-        $message = $coupon_code;
+		if(empty($coupon_code)){
+			$msg = 'Voucher Code must not be blank.';
+			$response_data = array(
+				'result'  => 0,
+				'html' => $this->alert_template($msg, FALSE)
+			);
+			echo json_encode($response_data);
+			exit;
+		}
+
+		$message = $coupon_code;
         if($check_coupon['result'] == TRUE){
             $coupon_id = $check_coupon['info']->coupon_id;
             $use = $check_coupon['info']->coupon_use;
@@ -3451,13 +3463,25 @@ class Creator extends CI_Controller {
             $value_type = $check_coupon['info']->coupon_value_type_id;
             $amount = $check_coupon['info']->coupon_amount;
             $scope_masking = $check_coupon['info']->coupon_scope_masking;
+			$coupon_cat_id = $check_coupon['info']->coupon_cat_id;
+			$trans_hdr_details = 'ID: '.$check_coupon['info']->coupon_transaction_header_id.'<br>Creation Date: '.$check_coupon['info']->coupon_transaction_header_added.'<br>';
+
+			if($coupon_cat_id >= 7){
+				$msg = 'Voucher/Coupon category is not allowed in your redeem access.';
+				$response_data = array(
+					'result'  => 0,
+					'html' => $this->alert_template($msg, FALSE)
+				);
+				echo json_encode($response_data);
+				exit;
+			}
 
             $mobile = '';
             if($use < $coupon_qty){
                 if($today_date <= $coupon_end){//Check coupon if expired
                     if($today_date >= $coupon_start){//Check coupon if redeemd date is started
 
-                        if($coupon_type == 1){  // STANDARD EVOUCHER
+                        if($coupon_type == 1){  //* STANDARD EVOUCHER
                             if($value_type == 1){ // For percentage Discount
                                 if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
 
@@ -3481,55 +3505,56 @@ class Creator extends CI_Controller {
                             }
 
                             $result = 1;
-                        }elseif($coupon_type == 2){ // PRODUCT E-VOUCHER
+                        }elseif($coupon_type == 2){ //* PRODUCT E-VOUCHER
                             if($value_type == 1){ // For percentage Discount                        
                                 if($check_coupon['info']->is_nationwide == 1){ //Check is nationwide
                                     if($check_coupon['info']->is_orc == 1){ // CHECK IF ORC ONLY
                                         if($check_coupon['info']->coupon_amount == 100){
                                             
 											$amount_product = '1 ORC';
-											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE');
+											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE', $trans_hdr_details);
                                         }else{
                                             
 											$amount_product = 'worth ' . $amount . '% discount ng ORC';
-											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE');
+											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE', $trans_hdr_details);
                                         }
                                     }else{
                                         $prod = $this->_get_prod($coupon_id);
                                         if($check_coupon['info']->coupon_amount == 100){
                                             
 											$amount_product = '1 '.$prod;
-											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE');
+											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE', $trans_hdr_details);
                                         }else{
                                             
 											$amount_product = 'worth ' . $amount . '% discount ng ' . $prod;
-											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE');
+											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE', $trans_hdr_details);
                                         }
                                     }
                                 }else{ //Find valid BC
                                     
-                                    $bc = $this->_get_bc($coupon_id);
+                                    // $bc = $this->_get_bc($coupon_id);
+									$bc = $scope_masking == '' ? $this->_get_bc($coupon_id) : $scope_masking;
 
                                     if($check_coupon['info']->is_orc == 1){
                                         if($check_coupon['info']->coupon_amount == 100){
                                             
 											$amount_product = '1 ORC';
-											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc);
+											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc, $trans_hdr_details);
                                         }else{
                                             
 											$amount_product = 'worth ' . $amount . '% discount ng ORC';
-											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc);
+											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc, $trans_hdr_details);
                                         }
                                     }else{
                                         $prod = $this->_get_prod($coupon_id);
                                         if($check_coupon['info']->coupon_amount == 100){
                                             
 											$amount_product = '1 '.$prod;
-											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc);
+											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc, $trans_hdr_details);
                                         }else{
                                             
 											$amount_product = 'worth ' . $amount . '% discount ng ' . $prod;
-											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc);
+											$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc, $trans_hdr_details);
                                         }
                                     }
                                 }
@@ -3540,25 +3565,26 @@ class Creator extends CI_Controller {
                                     if($check_coupon['info']->is_orc == 1){
                                         
 										$amount_product = $amount . ' discount para sa ORC';
-										$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE');
+										$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE', $trans_hdr_details);
                                     }else{
                                         $prod = $this->_get_prod($coupon_id);
                                         
 										$amount_product = $amount . ' discount para sa ' . $prod;
-										$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE');
+										$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, 'NATIONWIDE', $trans_hdr_details);
                                     }
                                 }else{ //Find valid BC
-                                    $bc = $this->_get_bc($coupon_id);
+                                    // $bc = $this->_get_bc($coupon_id);
+									$bc = $scope_masking == '' ? $this->_get_bc($coupon_id) : $scope_masking;
 
                                     if($check_coupon['info']->is_orc == 1){
                                         
 										$amount_product = $amount . ' discount para sa ORC';
-										$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc);
+										$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc, $trans_hdr_details);
                                     }else{
                                         $prod = $this->_get_prod($coupon_id);
                                         
 										$amount_product = $amount . ' discount para sa ' . $prod;
-										$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc);   
+										$sms = $this->_response_msg($value_type, $category, $reference_no=0, $amount_product, $bc, $trans_hdr_details);
                                     }
                                 }
                             }
@@ -3566,16 +3592,18 @@ class Creator extends CI_Controller {
                             $result = 1;
                         }else{
                             $result = 0;
-                            $sms = 'Error Invalid '.SEC_SYS_NAME.' Type. Please try again';
+                            $sms = $this->_invalid_response_msg(['type' => 'invalid_type']);
                         }                        
                     }else{
                         $result = 0;
-                        $sms = 'Sorry '.SYS_NAME.' redemption has not yet started. Redemption start on ' . $coupon_start . '.';
+						$params = ['type' => 'redemption_not_started', 'coupon_start' => $coupon_start];
+						$sms = $this->_invalid_response_msg($params);
+                        // $sms = 'Sorry '.SYS_NAME.' redemption has not yet started. Redemption start on ' . $coupon_start . '.';
                     }
                 }else{ //Invalid coupon is expired
                     
                     $result = 0;
-                    $sms = 'Sorry '.SYS_NAME.' was already expired.';
+                    $sms = $this->_invalid_response_msg(['type' => 'expired']);
                 }
             }else{
                 $result = 0;
@@ -3587,9 +3615,31 @@ class Creator extends CI_Controller {
 				$check_voucher_code = $this->main->check_data('redeemed_coupon_log_tbl', $filter, TRUE);
 				if($check_voucher_code['result'] == TRUE){
 					$redeemer_number = $check_voucher_code['info']->redeemed_coupon_log_contact_number;
+					$redeemer_outlet_ifs = $check_voucher_code['info']->outlet_ifs;
+					$redeemer_outlet_name = $check_voucher_code['info']->outlet_name;
+					$redeemer_staff_name = $check_voucher_code['info']->staff_name;
 					$redeemer_ts = $check_voucher_code['info']->redeemed_coupon_log_added;
 					// $sms = 'Sorry '.SYS_NAME.' was already redeemed by '.$redeemer_number.' on '.date_format(date_create($redeemer_ts),"M d, Y h:i:s A").'.';
-					$sms = 'Sorry, Ang '.SEC_SYS_NAME.' CODE ay REDEEMED na noong '.date_format(date_create($redeemer_ts),"M d, Y").' sa oras na '.date_format(date_create($redeemer_ts),"h:i:s A").' ng '.$redeemer_number.'.';
+					if(strlen($redeemer_number) == 11 && $redeemer_outlet_name == '' && $redeemer_staff_name == ''){
+						
+						$params = [
+							'type' 							=> 'already_redeemed_old',
+							'redeemer_ts_date' 				=> date_format(date_create($redeemer_ts),"M d, Y"),
+							'redeemer_ts_time' 				=> date_format(date_create($redeemer_ts),"h:i:s A"),
+							'redeemer_number' 				=> $redeemer_number,
+						];
+						$sms = $this->_invalid_response_msg($params);
+					} else {
+						
+						$params = [
+							'type' 							=> 'already_redeemed_new',
+							'redeemer_staff_name' 			=> $redeemer_staff_name,
+							'redeemer_outlet_name' 			=> $redeemer_outlet_name,
+							'redeemer_ts_date' 				=> date_format(date_create($redeemer_ts),"M d, Y"),
+							'redeemer_ts_time' 				=> date_format(date_create($redeemer_ts),"h:i:s A"),
+						];
+						$sms = $this->_invalid_response_msg($params);
+					}
 				} else {
 					$sms = 'Sorry, Ang '.SEC_SYS_NAME.' CODE ay REDEEMED na.';
 				}
@@ -3597,7 +3647,7 @@ class Creator extends CI_Controller {
         }else{
             //Invalid and already redeem
             $result = 0;
-            $sms = 'Sorry mali ang '.SEC_SYS_NAME.' CODE. Subukan ulit ang pag-redeem.';
+			$sms = $this->_invalid_response_msg(['type' => 'invalid_code']);
         }
 
         if($this->db->trans_status() === FALSE){
@@ -4239,19 +4289,57 @@ class Creator extends CI_Controller {
         exit;
     }
 
-	function _response_msg($value_type, $category, $reference_no, $amount_product, $location){
+	function _response_msg($value_type, $category, $reference_no, $amount_product, $location, $trans_hdr_details='', $winner_name = ''){
 		if($value_type == 1){ // PERCENTAGE
-			$old_sms = 'Ang '.SYS_NAME.' mo ay valid ng '.$amount_product .' at valid sa '.$location.'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+			$old_location = $location == 'NATIONWIDE' ? $location : 'sa '.$location;
+			$old_sms = 'Ang '.SYS_NAME.' mo ay valid ng '.$amount_product .' at valid '.$old_location.'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
 			
-			$sms = 'Ang '. $category . ' ay valid ng '.$amount_product .' at '.$location.' scope. Maaari mo ng itransact sa POS VOUCHER MODULE ang approval code na ' . $reference_no.'.';
-		} elseif ($value_type == 2){
-			$old_sms = 'Ang '.SYS_NAME.' mo ay valid worth P' . $amount_product . ' at valid sa '.$location.'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
+			$sms = $trans_hdr_details.'Ang '. $category . ' ay valid para sa '.$amount_product .' with '.$location.' scope. Maaari mo ng itransact sa POS VOUCHER MODULE ang approval code na <strong>' . $reference_no.'</strong>.';
+			if($category == "CHOOKSIE QR PROMO EVOUCHER"){
+				$sms = 'Ang '. $category . ' ay valid para sa '.$amount_product .' with '.$location.' scope. Ang promo winner nito ay si <strong>'.strtoupper($winner_name).'</strong>. Ito ay may approval code na <strong>' . $reference_no.'</strong>.';
+			}
+		} elseif ($value_type == 2){ // FLAT AMOUNT
+			$old_location = $location == 'NATIONWIDE' ? $location : 'sa '.$location;
+			$old_sms = 'Ang '.SYS_NAME.' mo ay valid worth P' . $amount_product . ' at valid sa '.$old_location.'. Ito ay '. $category . '. Maari mo nang iinput sa POS ang approval code ' . $reference_no;
 			
-			$sms = 'Ang '. $category . ' ay valid worth P' . $amount_product . ' at '.$location.' scope. Maari mo nang iinput sa POS VOUCHER MODULE ang approval code na ' . $reference_no.'.';
+			$sms = $trans_hdr_details.'Ang '. $category . ' ay valid worth P' . $amount_product . ' at '.$location.' scope. Maari mo nang iinput sa POS VOUCHER MODULE ang approval code na <strong>' . $reference_no.'</strong>.';
 			
 		}
 		return $sms;
 
+	}
+
+	function _invalid_response_msg($params){
+		
+		if($params['type'] == 'invalid_type'){
+			$sms = 'Error, Invalid '.SEC_SYS_NAME.' Type. Please try again';
+		}
+		elseif($params['type'] == 'redemption_not_started'){
+			$sms = 'Sorry, '.SEC_SYS_NAME.' redemption has not yet started. Redemption start on ' . $params['coupon_start'] . '.';
+		}
+		elseif($params['type'] == 'expired'){
+			// $sms = 'Sorry '.SYS_NAME.' was already expired.';
+			$sms = 'Sorry, Expired na ang '.SEC_SYS_NAME.' CODE.';
+		}
+		elseif($params['type'] == 'already_redeemed_old'){
+			$suffix = $params['redeemer_number'] ? ' ng '.$params['redeemer_number'].'.' : '.';
+			$sms = 'Sorry, Ang '.SEC_SYS_NAME.' CODE ay REDEEMED na noong '.$params['redeemer_ts_date'].' sa oras na '.$params['redeemer_ts_time'].$suffix;
+		}
+		elseif($params['type'] == 'already_redeemed_new'){
+			// $sms = 'Sorry, Ang '.SEC_SYS_NAME.' CODE ay REDEEMED na ni '.$params['redeemer_staff_name'].' sa '.$params['redeemer_outlet_name'].' noong '.$params['redeemer_ts_date'].' sa oras na '.$params['redeemer_ts_time'].'.';
+			$sms = 'Sorry, Ang '.SEC_SYS_NAME.' CODE ay REDEEMED na ni '.$params['redeemer_staff_name'].' sa '.$params['redeemer_outlet_name'].' noong '.$params['redeemer_ts_date'].', '.$params['redeemer_ts_time'].'.';
+		}
+		elseif($params['type'] == 'invalid_code'){
+			$sms = 'Sorry, mali ang '.SEC_SYS_NAME.' CODE, i check ng mabuti ang '.SEC_SYS_NAME.' code at siguraduhing tama ang nai-type na code. Subukang i-redeem ulet.';
+		}
+		elseif($params['type'] == 'promo_winner_invalid'){
+			$sms = 'Sorry, ang '.SEC_SYS_NAME.' CODE na ito ay wala pang promo winner na naideklara. I-check ang '.SEC_SYS_NAME.' code at siguraduhing tama ang nai-type na code. Subukang i-redeem ulet.';
+		}
+		else {
+			$sms = 'Sorry, Redemption failed for unknown reason.';
+		}
+
+		return $sms;
 	}
 
 	function _get_prod($coupon_id){

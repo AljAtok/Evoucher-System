@@ -56,9 +56,9 @@
                             </li>
                         </ul>
                     </li>
-					<!-- <li>
-                        <a href="<?=base_url('creator/redeem-coupon')?>"><strong><span class="fas fa-fw fa-stamp"></span> Redeem <?=SEC_SYS_NAME?></strong></a>
-                    </li> -->
+					<li>
+                        <a href="<?=base_url('creator/redeem-coupon')?>"><strong><span class="fas fa-fw fa-stamp"></span> Verify <?=SEC_SYS_NAME?></strong></a>
+                    </li>
                     
                 </ul>
 
@@ -100,7 +100,7 @@
 		<!-- Chart Circle -->
 		<script src="<?=base_url()?>assets/js/circles.min.js"></script>
 		
-        <script type="text/javascript" src="<?=base_url('assets/js/admin.js?v=4.2')?>"></script>
+        <script type="text/javascript" src="<?=base_url('assets/js/admin.js?v=4.3')?>"></script>
 		<script type="text/javascript" src="<?=base_url('assets/js/adv-order.js?v=1.1')?>"></script>
     </body>
 </html>

@@ -4773,7 +4773,7 @@ class Admin extends CI_Controller {
             $value_type = $check_coupon['info']->coupon_value_type_id;
             $amount = $check_coupon['info']->coupon_amount;
             $scope_masking = $check_coupon['info']->coupon_scope_masking;
-			$trans_hdr_details = '[ '.$check_coupon['info']->coupon_transaction_header_id.' - '.$check_coupon['info']->coupon_transaction_header_added.' ] ';
+			$trans_hdr_details = 'ID: '.$check_coupon['info']->coupon_transaction_header_id.'<br>Creation Date: '.$check_coupon['info']->coupon_transaction_header_added.'<br>';
 
             $mobile = '';
             if($use < $coupon_qty){
