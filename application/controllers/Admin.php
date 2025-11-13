@@ -2520,17 +2520,29 @@ class Admin extends CI_Controller {
             $data['coupon']      = $coupon; 
             $data['transaction'] = $check_transaction['info'];
 
-            if ( !empty($coupon->is_orc) ) {
-                $orc_list = array_column($this->main->get_data("{$parent_db}.orc_list_tbl", ['orc_list_status' => 1]), 'prod_sale_id');
-                $orcs      = implode(', ', $orc_list);
-                $coupon_prod_where = 'coupon_prod_sale_status = 1 AND coupon_id = ' . $id . ' AND prod_sale_id NOT IN (' . $orcs . ')';
-                $data['coupon_prod']  = array_column($this->main->get_data('coupon_prod_sale_tbl', $coupon_prod_where, FALSE, 'prod_sale_id'), 'prod_sale_id');
-            } else {
-                $data['coupon_prod']  = array_column($this->main->get_data('coupon_prod_sale_tbl', ['coupon_id' => $id, 'coupon_prod_sale_status' => 1], FALSE, 'prod_sale_id'), 'prod_sale_id');
-            }
+            // if ( !empty($coupon->is_orc) ) {
+            //     $orc_list = array_column($this->main->get_data("{$parent_db}.orc_list_tbl", ['orc_list_status' => 1]), 'prod_sale_id');
+            //     $orcs      = implode(', ', $orc_list);
+            //     $coupon_prod_where = 'coupon_prod_sale_status = 1 AND coupon_id = ' . $id . ' AND prod_sale_id NOT IN (' . $orcs . ')';
+            //     $data['coupon_prod']  = array_column($this->main->get_data('coupon_prod_sale_tbl', $coupon_prod_where, FALSE, 'prod_sale_id'), 'prod_sale_id');
+            // } else {
+            //     $data['coupon_prod']  = array_column($this->main->get_data('coupon_prod_sale_tbl', ['coupon_id' => $id, 'coupon_prod_sale_status' => 1], FALSE, 'prod_sale_id'), 'prod_sale_id');
+            // }
+            // $data['coupon_brand'] = array_column($this->main->get_data('coupon_brand_tbl', ['coupon_id' => $id, 'coupon_brand_status' => 1], FALSE, 'brand_id'), 'brand_id');
+            // $data['coupon_bc']    = array_column($this->main->get_data('coupon_bc_tbl', ['coupon_id' => $id, 'coupon_bc_status' => 1], FALSE, 'bc_id'), 'bc_id');
 
-            $data['coupon_brand'] = array_column($this->main->get_data('coupon_brand_tbl', ['coupon_id' => $id, 'coupon_brand_status' => 1], FALSE, 'brand_id'), 'brand_id');
-            $data['coupon_bc']    = array_column($this->main->get_data('coupon_bc_tbl', ['coupon_id' => $id, 'coupon_bc_status' => 1], FALSE, 'bc_id'), 'bc_id');
+			$join_trans_dtls = [
+				'coupon_transaction_details_tbl c' => 'a.coupon_id = c.coupon_id'
+			];
+			$filter = ['a.coupon_prod_sale_status' => 1, 'c.coupon_transaction_header_id' => $id];
+			$data['coupon_prod']  = array_column($this->main->get_join("coupon_prod_sale_tbl a", $join_trans_dtls, FALSE, FALSE, 'prod_sale_id', 'prod_sale_id', $filter), 'prod_sale_id');
+
+			$filter = ['a.coupon_brand_status' => 1, 'c.coupon_transaction_header_id' => $id];
+            $data['coupon_brand'] = array_column($this->main->get_join("coupon_brand_tbl a", $join_trans_dtls, FALSE, FALSE, 'brand_id', 'brand_id', $filter), 'brand_id');
+            
+			$filter = ['a.coupon_bc_status' => 1, 'c.coupon_transaction_header_id' => $id];
+            $data['coupon_bc']    = array_column($this->main->get_join("coupon_bc_tbl a", $join_trans_dtls, FALSE, FALSE, 'bc_id', 'bc_id', $filter), 'bc_id');
+
             $holder_type_where = (!in_array($check_transaction['info']->coupon_cat_id, paid_category())) ? 'coupon_holder_type_status = 1 AND coupon_holder_type_id != 4' : 'coupon_holder_type_status = 1';
             $data['holder_type']  = $this->main->get_data('coupon_holder_type_tbl a', $holder_type_where);
             $data['category']     = $this->main->get_data('coupon_category_tbl a', ['coupon_cat_status' => 1]);
@@ -2540,6 +2552,7 @@ class Admin extends CI_Controller {
             $data['value_type']   = $this->main->get_data('coupon_value_type_tbl a', ['coupon_value_type_status' => 1]);
             
 			$data['user_id'] = decode($info['user_id']);
+			$data['bc_select'] = $this->_get_bc_selection($coupon->is_nationwide, $data['coupon_bc'], true);
             $data['customer_select'] = $this->_get_customers_selection($check_transaction['info']->customer_id, $check_transaction['info']->is_advance_order);
             $payment_select = $this->_get_payment_types_selection($check_transaction['info']->payment_type_id, NULL, $check_transaction['info']->is_advance_order);
 			$data['payment_fields'] = $this->_get_payment_details_fields($check_transaction['info']->payment_type_id, $check_transaction['info']->payment_type_id, $check_transaction['info']->payment_terms, $payment_select);
@@ -8185,7 +8198,7 @@ class Admin extends CI_Controller {
 		return $product_select;
 	}
 	
-	public function _get_bc_selection($is_nationwide=NULL, $bc_id=NULL){
+	public function _get_bc_selection($is_nationwide=NULL, $bc_id=NULL, $label_display = false){
 		$parent_db = $GLOBALS['parent_db'];
 		$filter = ['bc_status' => 1, 'bc_id <' => 22];
 		// if($bc_id){
@@ -8195,8 +8208,26 @@ class Admin extends CI_Controller {
 		// 		$filter = ['bc_id' => $bc_id];
 		// 	}
 		// }
-		$bc_list         = $this->main->get_data("{$parent_db}.bc_tbl", $filter, false, 'bc_id, bc_name');
 		// return $bc_id;
+		if($label_display){
+			$names = [];
+			if($is_nationwide == 1){
+				$names[] = 'NATIONWIDE';
+			} else {
+				if(is_array($bc_id)){
+					$filter = "bc_status = 1 and bc_id IN (" . implode(',', $bc_id) . ")";
+				} else {
+					$filter = ['bc_id' => $bc_id, 'bc_status' => 1];
+				}
+				$bc_list = $this->main->get_data("{$parent_db}.bc_tbl", $filter, false, 'bc_id, bc_name');
+				foreach ($bc_list as $row) {
+					$names[] = $row->bc_name;
+				}
+			}
+			return implode(', ', $names);
+		}
+		$bc_list         = $this->main->get_data("{$parent_db}.bc_tbl", $filter, false, 'bc_id, bc_name');
+
 		$bc_select = '<option value="">Select Business Center</option>';
 		if($is_nationwide == 1) $selected = "selected";
 		else $selected = "";

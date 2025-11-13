@@ -27,7 +27,7 @@
         <label>Scope Masking: <?=$transaction->coupon_scope_masking?></label>
     </div>
     <div class="form-group">
-        <label>Business Center: <?=$coupon->bc?></label>
+        <label>Business Center: <?=$bc_select?></label>
     </div>
     <div class="form-group">
         <label>Brand: <?=$coupon->brands?></label>
