@@ -479,6 +479,7 @@ if ( ! function_exists('encode')){
 					return
 						($coupon_cat_id != '2' ? dropdown_item($generic_btns['attachment_button'], 'View Attachments') : '') .
 						dropdown_item($generic_btns['edit_button'], 'Edit Transaction') .
+						dropdown_item($generic_btns['duplicate_button'], 'Duplicate Transaction') .
 						dropdown_item($generic_btns['cancel_button'], 'Cancel Transaction') .
 						dropdown_item($generic_btns['view_details_button'], 'View Details') .
 						dropdown_item($btns['appr_btn'], 'Approve Transaction');

@@ -21,12 +21,13 @@ class Cron extends CI_Controller {
 
 	public function get_random_survey_winners($form_id, $date=null){
 		
-		$freebie_date = $date ? date('Y-m-d', strtotime($date)) : date_now("Y-m-d");
+		$freebie_date 							= $date ? date('Y-m-d', strtotime($date)) : date_now("Y-m-d");
 		$sibling_db 							= sibling_one_db();
 		$parent_db 								= parent_db();
 		$check_form 							= $this->main->check_data("{$sibling_db}.form_tbl", ['form_id' => $form_id], TRUE);
 		$start_date								= $check_form['result'] ? $check_form['info']->start_date : date("Y-m-d");
 		$end_date								= $check_form['result'] ? $check_form['info']->end_date : date("Y-m-d");
+		$end_date								= $date || $date !== null ? date('Y-m-d', strtotime($date . ' 17:00:00')) : date('Y-m-d', strtotime($end_date . ' 23:59:59'));
 
 		$get_participating_bcs 					= $this->main->get_data('survey_participating_bcs_tbl', ['form_id' => $form_id, 'survey_participating_bc_status' => 1]);
 		$join 									= [
@@ -132,7 +133,7 @@ class Cron extends CI_Controller {
 		}
 	}
 
-	public function email_survey_winners($form_id){
+	public function email_survey_winners($form_id = 0){
 		$parent_db = $GLOBALS['parent_db'];
 		$join        = [
 			'survey_reference_tbl b'			=> 'b.survey_ref_id = a.survey_ref_id AND a.form_id = ' . $form_id.' and survey_winner_email_result = 0 and survey_winner_status = 1',
